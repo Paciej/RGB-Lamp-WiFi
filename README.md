@@ -30,9 +30,6 @@ The project is currently under active development and BLE support will be remove
 
 > The lamp will be controlled using MQTT messages over WiFi.
 > Temperature, RGB color, brightness, and lighting mode data are exposed via MQTT topics.
-<p align="center">
-<img src="https://github.com/Paciej/RGB-Lamp/blob/main/hardware/Pictures/Notify.jpg" alt="MQTT Temperature Reading" width="200">
-</p>
 ---
 
 ##  Lighting Modes

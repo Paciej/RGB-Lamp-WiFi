@@ -1,7 +1,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <esp_system.h>
-#include "LedBLEService.h"
+#include "LedMqttService.h"
 
 
 /********* Function declarations *********/
@@ -42,8 +42,8 @@ int ledRed = 0;
 int ledGreen = 0;
 int ledBlue = 0;
 
-// BLE server and connection
-LedBLEService ble;
+// MQTT server and connection
+LedMqttService mqtt;
 
 // state variables
 bool isLedTempCrit = false;
@@ -75,10 +75,10 @@ DallasTemperature tempSensors(&oneWire);
 
 /********** LOGIC **********/
 void writeLedStatus() {
-    if (!ble.isConnected()) return;
-    String response = "RGB: " + String(ledRed) + "," + String(ledGreen) + "," + String(ledBlue);
-    ble.sendData(response);
-    Serial.printf("RGB values: R=%d G=%d B=%d \n", ledRed, ledGreen, ledBlue);
+    //if (!ble.isConnected()) return;
+    //String response = "RGB: " + String(ledRed) + "," + String(ledGreen) + "," + String(ledBlue);
+    //ble.sendData(response);
+    //Serial.printf("RGB values: R=%d G=%d B=%d \n", ledRed, ledGreen, ledBlue);
 }
 
 // handle getting color from callback
@@ -184,7 +184,7 @@ void updateLED() {
       ledcWrite(PWM_CH_GREEN, ledGreen);
       ledcWrite(PWM_CH_BLUE, ledBlue);
   } else {
-      ble.sendData("Zbyt wysoka temperatura!");
+      //ble.sendData("Zbyt wysoka temperatura!");
   }
 }
 
@@ -210,7 +210,7 @@ void updateTemp() {
 
     if (tempC - lastWrittenTemp != 0) {
       String response = "Temperature: " + String(tempC);
-      ble.sendData(response);
+      //ble.sendData(response);
       printf("temperatura: %.1f \n", tempC);
       lastWrittenTemp = tempC;
     }
@@ -220,7 +220,7 @@ void updateTemp() {
       currentMode = ColorModes::None;
       
       String response = "ALARM TEMP: " + String(tempC, 1) + "C";
-      ble.sendData(response);
+      //ble.sendData(response);
       Serial.printf("%s", response);
 
       ledRed = (ledRed > LED_CRIT_MAX_INTENSITY) ? LED_CRIT_MAX_INTENSITY : ledRed;
@@ -287,14 +287,16 @@ void setup() {
   ledRed = 100; ledGreen = 100; ledBlue = 100;
   updateLED();
 
-  ble.onColorChange(handleColorFromBle);
-  ble.onModeChange(handleModeFromBle);
-  ble.init("ESP32_RGB_LAMP");
+  //ble.onColorChange(handleColorFromBle);
+  //ble.onModeChange(handleModeFromBle);
+  //ble.init("ESP32_RGB_LAMP");
+  mqtt.init("ZagraconeKaer2,4GHz", "#Obsran4Dup4");
 }
 
 void loop() {
 
-  ble.update();
+  //ble.update();
+  mqtt.update();
   updateTemp();    
   updateButton(); 
   handleModes(); 
