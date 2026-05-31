@@ -2,6 +2,7 @@
 #include <DallasTemperature.h>
 #include <esp_system.h>
 #include "LedMqttService.h"
+#include "Secrets.h"
 
 
 /********* Function declarations *********/
@@ -75,33 +76,33 @@ DallasTemperature tempSensors(&oneWire);
 
 /********** LOGIC **********/
 void writeLedStatus() {
-    //if (!ble.isConnected()) return;
-    //String response = "RGB: " + String(ledRed) + "," + String(ledGreen) + "," + String(ledBlue);
-    //ble.sendData(response);
-    //Serial.printf("RGB values: R=%d G=%d B=%d \n", ledRed, ledGreen, ledBlue);
+  //if (!ble.isConnected()) return;
+  String response = "RGB: " + String(ledRed) + "," + String(ledGreen) + "," + String(ledBlue);
+  mqtt.sendData(response);
+  //Serial.printf("RGB values: R=%d G=%d B=%d \n", ledRed, ledGreen, ledBlue);
 }
 
 // handle getting color from callback
-void handleColorFromBle(int r, int g, int b) {
-    ledRed = r;
-    ledGreen = g;
-    ledBlue = b;
-    currentMode = ColorModes::None;
-    updateLED();
+void handleColorFromMqtt(int r, int g, int b) {
+  ledRed = r;
+  ledGreen = g;
+  ledBlue = b;
+  currentMode = ColorModes::None;
+  updateLED();
 }
 
 // handle getting mode from callback
-void handleModeFromBle(String mode) {
-    if (mode == "Wave") {
-        currentMode = ColorModes::Wave;
-    } else if (mode == "Pulse") {
-        currentMode = ColorModes::Pulse;
-        baseRed = ledRed;
-        baseGreen = ledGreen;
-        baseBlue = ledBlue;
-    } else if (mode == "Candle") {
-        currentMode = ColorModes::Candle;
-    }
+void handleModeFromMqtt(String mode) {
+  if (mode == "Wave") {
+      currentMode = ColorModes::Wave;
+  } else if (mode == "Pulse") {
+      currentMode = ColorModes::Pulse;
+      baseRed = ledRed;
+      baseGreen = ledGreen;
+      baseBlue = ledBlue;
+  } else if (mode == "Candle") {
+      currentMode = ColorModes::Candle;
+  }
 }
 
 #pragma region led modes
@@ -184,7 +185,7 @@ void updateLED() {
       ledcWrite(PWM_CH_GREEN, ledGreen);
       ledcWrite(PWM_CH_BLUE, ledBlue);
   } else {
-      //ble.sendData("Zbyt wysoka temperatura!");
+      mqtt.sendData("Zbyt wysoka temperatura!");
   }
 }
 
@@ -210,7 +211,7 @@ void updateTemp() {
 
     if (tempC - lastWrittenTemp != 0) {
       String response = "Temperature: " + String(tempC);
-      //ble.sendData(response);
+      mqtt.sendData(response);
       printf("temperatura: %.1f \n", tempC);
       lastWrittenTemp = tempC;
     }
@@ -220,7 +221,7 @@ void updateTemp() {
       currentMode = ColorModes::None;
       
       String response = "ALARM TEMP: " + String(tempC, 1) + "C";
-      //ble.sendData(response);
+      mqtt.sendData(response);
       Serial.printf("%s", response);
 
       ledRed = (ledRed > LED_CRIT_MAX_INTENSITY) ? LED_CRIT_MAX_INTENSITY : ledRed;
@@ -290,7 +291,9 @@ void setup() {
   //ble.onColorChange(handleColorFromBle);
   //ble.onModeChange(handleModeFromBle);
   //ble.init("ESP32_RGB_LAMP");
-  mqtt.init("ZagraconeKaer2,4GHz", "#Obsran4Dup4");
+  mqtt.onColorChange(handleColorFromMqtt);
+  mqtt.onModeChange(handleModeFromMqtt);
+  mqtt.init(WIFI_SSID, WIFI_PASSWORD);
 }
 
 void loop() {
