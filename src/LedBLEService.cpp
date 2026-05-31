@@ -24,7 +24,7 @@ public:
     LedBLECharacteristicCallbacks(LedBLEService* ls) : ledService(ls) {}
 
     void onWrite(BLECharacteristic *pCharacteristic) {
-        String rxValue = pCharacteristic->getValue();
+        String rxValue = pCharacteristic->getValue().c_str();
         
         if (rxValue.length() > 0) {
             String receivedData = String(rxValue.c_str());

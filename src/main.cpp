@@ -1,7 +1,11 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#include <esp_random.h>
+#include <esp_system.h>
 #include "LedBLEService.h"
+
+
+/********* Function declarations *********/
+void updateLED();
 
 /********* Const variables *********/
   // Pins
@@ -10,6 +14,13 @@ const unsigned int PIN_GREEN = 26;
 const unsigned int PIN_BLUE = 27;
 const unsigned int PIN_BUTTON = 21;
 const unsigned int PIN_TEMP = 18;
+
+  // LEDC PWM channels for ESP32 Arduino Core 2.x
+const uint8_t PWM_CH_RED = 0;
+const uint8_t PWM_CH_GREEN = 1;
+const uint8_t PWM_CH_BLUE = 2;
+const uint32_t PWM_FREQ = 5000;
+const uint8_t PWM_RESOLUTION = 8;
 
   // Other
 const unsigned int LED_CRIT_MAX_INTENSITY = 100;
@@ -63,14 +74,12 @@ OneWire oneWire(PIN_TEMP);
 DallasTemperature tempSensors(&oneWire);
 
 /********** LOGIC **********/
-
 void writeLedStatus() {
     if (!ble.isConnected()) return;
     String response = "RGB: " + String(ledRed) + "," + String(ledGreen) + "," + String(ledBlue);
     ble.sendData(response);
     Serial.printf("RGB values: R=%d G=%d B=%d \n", ledRed, ledGreen, ledBlue);
 }
-
 
 // handle getting color from callback
 void handleColorFromBle(int r, int g, int b) {
@@ -171,9 +180,9 @@ void handleModes() {
 void updateLED() {
   if (!isLedTempCrit || 
      (ledRed <= LED_CRIT_MAX_INTENSITY && ledGreen <= LED_CRIT_MAX_INTENSITY && ledBlue <= LED_CRIT_MAX_INTENSITY)) {
-      ledcWrite(PIN_RED, ledRed);
-      ledcWrite(PIN_GREEN, ledGreen);
-      ledcWrite(PIN_BLUE, ledBlue);
+      ledcWrite(PWM_CH_RED, ledRed);
+      ledcWrite(PWM_CH_GREEN, ledGreen);
+      ledcWrite(PWM_CH_BLUE, ledBlue);
   } else {
       ble.sendData("Zbyt wysoka temperatura!");
   }
@@ -262,9 +271,13 @@ void updateButton() {
 void setup() {
   Serial.begin(115200);
   
-  ledcAttach(PIN_RED, 5000, 8);
-  ledcAttach(PIN_GREEN, 5000, 8);
-  ledcAttach(PIN_BLUE, 5000, 8);
+  ledcSetup(PWM_CH_RED, PWM_FREQ, PWM_RESOLUTION);
+  ledcSetup(PWM_CH_GREEN, PWM_FREQ, PWM_RESOLUTION);
+  ledcSetup(PWM_CH_BLUE, PWM_FREQ, PWM_RESOLUTION);
+
+  ledcAttachPin(PIN_RED, PWM_CH_RED);
+  ledcAttachPin(PIN_GREEN, PWM_CH_GREEN);
+  ledcAttachPin(PIN_BLUE, PWM_CH_BLUE);
   
   pinMode(PIN_BUTTON, INPUT_PULLUP);
   

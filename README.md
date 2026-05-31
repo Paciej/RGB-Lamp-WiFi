@@ -1,9 +1,9 @@
-# Smart RGB LED Lamp — BLE Controlled (ESP32)
+# Smart RGB LED Lamp — WiFi + MQTT (ESP32)
 
-A Bluetooth Low Energy (BLE) controlled RGB LED lamp built on the ESP32 microcontroller.
-The lamp supports multiple lighting modes, real-time color and brightness control,
-and temperature monitoring — all controllable wirelessly via **nRF Connect** app.
-A dedicated mobile application is currently under development.
+A WiFi-connected RGB LED lamp prototype built on the ESP32 microcontroller.
+The firmware is being developed to support MQTT-based control for real-time
+color, brightness, lighting modes, and temperature monitoring.
+The project is currently under active development and BLE support will be removed.
 
 ---
 
@@ -26,12 +26,12 @@ A dedicated mobile application is currently under development.
 </p>
 ---
 
-## Control via nRF Connect
+## Control via WiFi + MQTT
 
-> The lamp is currently controlled using the **nRF Connect** mobile app.
-> Temperature readings are exposed as a BLE characteristic and visible directly in the app.
+> The lamp will be controlled using MQTT messages over WiFi.
+> Temperature, RGB color, brightness, and lighting mode data are exposed via MQTT topics.
 <p align="center">
-<img src="https://github.com/Paciej/RGB-Lamp/blob/main/hardware/Pictures/Notify.jpg" alt="nRF Connect - Temperature Reading" width="200">
+<img src="https://github.com/Paciej/RGB-Lamp/blob/main/hardware/Pictures/Notify.jpg" alt="MQTT Temperature Reading" width="200">
 </p>
 ---
 
@@ -75,15 +75,15 @@ A dedicated mobile application is currently under development.
 
 ##  Features
 
--  **Full RGB color control** — set any color via BLE (values 0–255 per channel)
+-  **Full RGB color control** — set any color via MQTT payloads (values 0–255 per channel)
 -  **Brightness control** via MOSFET PWM (low-side configuration)
--  **Temperature monitoring** — DS18B20 sensor exposed as a BLE characteristic
+-  **Temperature monitoring** — DS18B20 sensor data published over MQTT
 -  **Random color button** — applies a random color using ESP32's hardware RNG
 -  **Lighting modes:**
   - Candle (flicker simulation)
   - Pulse (breathing effect)
   - Wave (smooth RGB transitions)
--  **BLE communication** — controlled via nRF Connect (dedicated app in development)
+-  **WiFi + MQTT communication** — planned MQTT-based control interface
 
 ---
 
@@ -103,7 +103,7 @@ A dedicated mobile application is currently under development.
 
 | Component | Description |
 |-----------|-------------|
-| **ESP32 DevKit** | Main microcontroller with built-in BLE |
+| **ESP32 DevKit** | Main microcontroller with WiFi and MQTT support |
 | **RGB LED 3W (Star)** | High-brightness point light source |
 | **MOSFET (×3)** | Low-side PWM drivers for each RGB channel |
 | **LM2596 Buck Converter Module** | Steps down 12V supply to 3.3V for ESP32 |
@@ -120,7 +120,8 @@ A dedicated mobile application is currently under development.
 
 The project uses the following external libraries bundled in the repository:
 
-- `ESP32 BLE Arduino` — BLE GATT server implementation
+- `WiFi` — ESP32 WiFi connectivity
+- `PubSubClient` or equivalent MQTT client library — MQTT messaging support
 - `DallasTemperature` + `OneWire` — DS18B20 sensor support
 - Custom Eagle component library — 33Ω 5W resistor footprint
 
@@ -128,29 +129,24 @@ The project uses the following external libraries bundled in the repository:
 
 ## Setup
 
-1. Open the project in **Arduino IDE** or **PlatformIO**
+1. Open the project in **PlatformIO**
 2. Select board: `ESP32 Dev Module`
-3. Install libraries from the `/libraries` folder (or use the bundled ones)
-4. Flash the firmware to your ESP32
-5. Open **nRF Connect** on your mobile device
-6. Scan for the device and connect
-7. Use GATT characteristics to:
-   - Write RGB values (3 bytes: R, G, B)
-   - Write lighting mode
-   - Read temperature
+3. Install libraries
+4. Configure WiFi SSID, password, and MQTT broker settings in the firmware
+5. Flash the firmware to your ESP32
+6. Connect the lamp to your WiFi network
+7. Control RGB color, lighting mode, and temperature monitoring via MQTT topics
 
 ---
 
-##  BLE Control (nRF Connect)
+##  MQTT Control
 
-Until the dedicated app is released, the lamp can be fully controlled via **nRF Connect**:
+The lamp is intended to be controlled using MQTT topics over the local WiFi network:
 
-- Write `[R, G, B]` bytes to the color characteristic to set color
-- Write a mode byte to switch lighting modes:
-  - `Candle` — Candle
-  - `Pulse` — Pulse
-  - `Wave` — Wave
-- Read the temperature characteristic to monitor the LED temperature
+- Publish RGB payloads to set the lamp color
+- Publish mode commands to switch lighting modes
+- Subscribe to temperature updates from the lamp
+- Subscribe to status topics for connection and state information
 
 ---
 
