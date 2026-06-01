@@ -1,5 +1,5 @@
-#ifndef LED_MQTT_SERVICE_H_ 
-#define LED_MQTT_SERVICE_H_ 
+#ifndef LED_MQTT_SERVICE_H
+#define LED_MQTT_SERVICE_H
 
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -12,14 +12,14 @@ private:
     ColorChangeCallback colorCallback = nullptr;
     ModeChangeCallback modeCallback = nullptr;
 
-    // CALLBACKS NAMES
+    // TOPICS
     const char* topicColor = "lamp/cmd/color";
     const char* topicMode = "lamp/cmd/mode";
     const char* topicMessage = "lamp/message";
 
     const char* device_id = "ESP32Client";
-    const char* mqtt_server = "mqtt broker ip";
 
+    // MQTT clients
     WiFiClient espClient;
     PubSubClient* client;
     
@@ -27,7 +27,7 @@ private:
     void reconnect();
 public:
     LedMqttService() {
-       client = new PubSubClient(espClient);
+        client = new PubSubClient(espClient);
     }
 
     void init(const char* ssid, const char* password);
