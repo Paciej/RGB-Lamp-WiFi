@@ -79,7 +79,7 @@ void writeLedStatus() {
   //if (!ble.isConnected()) return;
   String response = "RGB: " + String(ledRed) + "," + String(ledGreen) + "," + String(ledBlue);
   mqtt.sendData(response);
-  //Serial.printf("RGB values: R=%d G=%d B=%d \n", ledRed, ledGreen, ledBlue);
+  Serial.printf("RGB values: R=%d G=%d B=%d \n", ledRed, ledGreen, ledBlue);
 }
 
 // handle getting color from callback
@@ -184,6 +184,7 @@ void updateLED() {
       ledcWrite(PWM_CH_RED, ledRed);
       ledcWrite(PWM_CH_GREEN, ledGreen);
       ledcWrite(PWM_CH_BLUE, ledBlue);
+      writeLedStatus();
   } else {
       mqtt.sendData("Zbyt wysoka temperatura!");
   }
