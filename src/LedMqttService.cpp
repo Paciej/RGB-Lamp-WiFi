@@ -9,8 +9,6 @@ void LedMqttService::reconnect() {
             client->subscribe(topicColor);
             client->subscribe(topicMode);
             client->subscribe(topicMessage);
-            //client->subscribe(topicConnection);
-            //client->subscribe(topicTemp);
             sendData("Connected", topicConnection);
         } else {
             Serial.print("Failed, rc=");
@@ -55,11 +53,9 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
     Serial.println();
 
     if (strcmp(topic, topicColor) == 0) {
-        //char comma = (message.indexOf(',') == -1) ? '.' : ',';
-        //int firstComma = message.indexOf(comma);
-        //int secondComma = message.indexOf(comma, firstComma + 1);
-        int firstComma = message.indexOf(',');
-        int secondComma = message.indexOf(',', firstComma + 1);
+        char comma = (message.indexOf(',') == -1) ? '.' : ',';
+        int firstComma = message.indexOf(comma);
+        int secondComma = message.indexOf(comma, firstComma + 1);
         
         if (firstComma > 0 && secondComma > firstComma) {
             String redStr = message.substring(0, firstComma);
