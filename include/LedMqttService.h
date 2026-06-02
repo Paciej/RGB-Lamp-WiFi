@@ -44,8 +44,7 @@ public:
 
     void init(const char* ssid, const char* password);
     void update();
-    void sendData(String data);
-    void sendData(String data, const char* topic);
+    void sendData(String data, const char* topic, bool retained = false);
     bool isConnected();
     void onColorChange(ColorChangeCallback callback);
     void onModeChange(ModeChangeCallback callback);

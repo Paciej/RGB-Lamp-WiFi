@@ -90,12 +90,8 @@ void LedMqttService::update() {
     client->loop();
 }
 
-void LedMqttService::sendData(String data) {
-   client->publish(topicMessage, data.c_str());
-}
-
-void LedMqttService::sendData(String data, const char* topic) {
-    client->publish(topic, data.c_str());
+void LedMqttService::sendData(String data, const char* topic, bool retained) {
+    client->publish(topic, data.c_str(), (boolean)retained);
 }
 
 bool LedMqttService::isConnected() {
