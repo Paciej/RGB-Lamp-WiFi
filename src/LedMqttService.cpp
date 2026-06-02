@@ -8,8 +8,8 @@ void LedMqttService::reconnect() {
         if (client->connect(device_id)) {
             client->subscribe(topicColor);
             client->subscribe(topicMode);
+            client->subscribe(topicMessage);
             //client->subscribe(topicConnection);
-            //client->subscribe(topicMessage);
             //client->subscribe(topicTemp);
             sendData("Connected", topicConnection);
         } else {
@@ -44,8 +44,6 @@ void LedMqttService::init(const char* ssid, const char* password) {
     // Setup MQTT
     client->setServer("192.168.202.78", 1883);
     client->setCallback([this](char* topic, byte* payload, unsigned int length){callback(topic, payload, length);});
-    sendData("Connected", topicConnection);
-    sendData("", topicMessage);
 }
 
 void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
@@ -93,6 +91,10 @@ void LedMqttService::update() {
     }
 
     client->loop();
+}
+
+void LedMqttService::sendData(String data) {
+   client->publish(topicMessage, data.c_str());
 }
 
 void LedMqttService::sendData(String data, const char* topic) {
