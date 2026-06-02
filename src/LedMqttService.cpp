@@ -1,4 +1,5 @@
 #include "LedMqttService.h"
+#include "Secrets.h"
 
 // ********* Private Functions ***********/
 // ----------------------------------------
