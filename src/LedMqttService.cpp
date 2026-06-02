@@ -6,9 +6,12 @@ void LedMqttService::reconnect() {
     while (!client->connected()) {
         Serial.println("Attempting MQTT connection...");
         if (client->connect(device_id)) {
-            Serial.println("Connected");
             client->subscribe(topicColor);
             client->subscribe(topicMode);
+            //client->subscribe(topicConnection);
+            //client->subscribe(topicMessage);
+            //client->subscribe(topicTemp);
+            sendData("Connected", topicConnection);
         } else {
             Serial.print("Failed, rc=");
             Serial.print(client->state());
@@ -39,13 +42,13 @@ void LedMqttService::init(const char* ssid, const char* password) {
     Serial.println(WiFi.localIP());
 
     // Setup MQTT
-    client->setServer("192.168.163.78", 1883);
+    client->setServer("192.168.202.78", 1883);
     client->setCallback([this](char* topic, byte* payload, unsigned int length){callback(topic, payload, length);});
+    sendData("Connected", topicConnection);
+    sendData("", topicMessage);
 }
 
 void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
-    Serial.printf("Received topic: %s\n", topic);
-    Serial.print("Value: ");
     String message = "";
     for (int i = 0; i < length; i++) {
         message += (char)payload[i];
@@ -54,6 +57,9 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
     Serial.println();
 
     if (strcmp(topic, topicColor) == 0) {
+        //char comma = (message.indexOf(',') == -1) ? '.' : ',';
+        //int firstComma = message.indexOf(comma);
+        //int secondComma = message.indexOf(comma, firstComma + 1);
         int firstComma = message.indexOf(',');
         int secondComma = message.indexOf(',', firstComma + 1);
         
@@ -89,9 +95,12 @@ void LedMqttService::update() {
     client->loop();
 }
 
-void LedMqttService::sendData(String data) {
-    client->publish(topicMessage, data.c_str());
-    Serial.printf("Sent message: %s\n", data);
+void LedMqttService::sendData(String data, const char* topic) {
+    client->publish(topic, data.c_str());
+}
+
+bool LedMqttService::isConnected() {
+    return client->connected();
 }
 
 void LedMqttService::onColorChange(ColorChangeCallback callback) {
