@@ -29,6 +29,7 @@ void LedMqttService::init(const char* ssid, const char* password) {
     Serial.println(ssid);
 
     WiFi.begin(ssid, password);
+    WiFi.setAutoReconnect(true);
 
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
@@ -42,6 +43,7 @@ void LedMqttService::init(const char* ssid, const char* password) {
 
     // Setup MQTT
     client->setServer("192.168.202.78", 1883);
+    client->setKeepAlive(90);
     client->setCallback([this](char* topic, byte* payload, unsigned int length){callback(topic, payload, length);});
 }
 

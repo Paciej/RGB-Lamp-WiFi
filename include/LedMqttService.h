@@ -15,8 +15,8 @@ private:
     // TOPICS
     // ---------------------------------------------
     // Subscribe
-    const char* topicColor =        "lamp/cmd/color";
-    const char* topicMode =         "lamp/cmd/mode";
+    const char* topicColor = "lamp/cmd/color";
+    const char* topicMode =  "lamp/cmd/mode";
 
     const char* device_id = "ESP32Client";
     // MQTT clients
