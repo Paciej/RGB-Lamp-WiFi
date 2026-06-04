@@ -32,14 +32,14 @@ public:
     // TOPICS
     // ---------------------------------------------
     // Publish
-    const char* topicPowerStatus =  "lamp/status/power";
-    const char* topicConnection =   "lamp/status/connection";
-    const char* topicTemp =         "lamp/status/temperature";
+    const char* topicPowerStatus =  "lamp/status/power";        
+    const char* topicConnection =   "lamp/status/connection";   
+    const char* topicTemp =         "lamp/status/temperature";  
     const char* topicTempMessage =  "lamp/status/temperature/message";
-    const char* topicColorStatus =  "lamp/status/color";
+    const char* topicColorStatus =  "lamp/status/color";        
     const char* topicColorMessage = "lamp/status/color/message";
-    const char* topicModeStatus =   "lamp/status/mode";
-    const char* topicModeMessage =  "lamp/status/mode/message";
+    const char* topicModeStatus =   "lamp/status/mode";         
+    const char* topicModeMessage =  "lamp/status/mode/message"; 
 
     LedMqttService() {
         client = new PubSubClient(espClient);
