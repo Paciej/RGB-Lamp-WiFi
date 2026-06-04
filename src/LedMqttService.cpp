@@ -7,13 +7,14 @@ void LedMqttService::reconnect() {
     while (!client->connected()) {
         Serial.println("Attempting MQTT connection...");
         if (client->connect(device_id)) {
+            client->subscribe(topicPower);
             client->subscribe(topicColor);
             client->subscribe(topicMode);
-            client->subscribe(topicMessage);
             sendData("Connected", topicConnection);
         } else {
             Serial.print("Failed, rc=");
-            Serial.print(client->state());
+            Serial.print(client->state()); 
+            Serial.println("");
             delay(5000);
         }
     } 
@@ -82,6 +83,14 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
             }
         }
     }
+
+    if (strcmp(topic, topicPower) == 0) {
+        if (message == "ON" || message == "1") {
+            powerCallback(true);
+        } else if (message == "OFF" || message == "0") {
+            powerCallback(false);
+        }
+    }
 }
 
 void LedMqttService::update() {
@@ -98,6 +107,10 @@ void LedMqttService::sendData(String data, const char* topic, bool retained) {
 
 bool LedMqttService::isConnected() {
     return client->connected();
+}
+
+void LedMqttService::onPowerChange(PowerChangeCallback callback) {
+    this->powerCallback = callback;
 }
 
 void LedMqttService::onColorChange(ColorChangeCallback callback) {
