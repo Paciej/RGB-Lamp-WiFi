@@ -43,7 +43,7 @@ void LedMqttService::init(const char* ssid, const char* password) {
     Serial.println(WiFi.localIP());
 
     // Setup MQTT
-    client->setServer("192.168.202.78", 1883);
+    client->setServer(MQTT_BROKER, 1883);
     client->setKeepAlive(90);
     client->setCallback([this](char* topic, byte* payload, unsigned int length){callback(topic, payload, length);});
 }
@@ -77,7 +77,7 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
     }
 
     if (strcmp(topic, topicMode) == 0) {
-        if (message == "Wave" || message == "Pulse" || message == "Candle") {
+        if (message == "Wave" || message == "Pulse" || message == "Candle" || message == "None") {
             if (modeCallback) {
                 modeCallback(message);
             }

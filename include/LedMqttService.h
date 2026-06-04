@@ -32,7 +32,7 @@ public:
     // TOPICS
     // ---------------------------------------------
     // Publish
-    const char* topicMessage =      "lamp/message";
+    const char* topicPowerStatus =  "lamp/status/power";
     const char* topicConnection =   "lamp/status/connection";
     const char* topicTemp =         "lamp/status/temperature";
     const char* topicTempMessage =  "lamp/status/temperature/message";

@@ -112,17 +112,21 @@ void handlePowerFromMqtt(bool power) {
     ledGreen = 0;
     ledBlue = 0;
     isOn = false;
+    mqtt.sendData("OFF", mqtt.topicPowerStatus);
     updateLED();
   } else if (power && !isOn) {
     ledRed = baseRed;
     ledGreen = baseGreen;
     ledBlue = baseBlue;
+    mqtt.sendData("ON", mqtt.topicPowerStatus);
+    updateLED();
     isOn = true;
   }
 }
 
 // handle getting color from callback
 void handleColorFromMqtt(int r, int g, int b) {
+  if (!isOn) return;
   ledRed = r;
   ledGreen = g;
   ledBlue = b;
@@ -133,6 +137,7 @@ void handleColorFromMqtt(int r, int g, int b) {
 
 // handle getting mode from callback
 void handleModeFromMqtt(String mode) {
+  if (!isOn) return;
   if (mode == "Wave") {
       currentMode = ColorModes::Wave;
   } else if (mode == "Pulse") {
@@ -142,6 +147,8 @@ void handleModeFromMqtt(String mode) {
       baseBlue = ledBlue;
   } else if (mode == "Candle") {
       currentMode = ColorModes::Candle;
+  } else if (mode == "None") {
+      currentMode = ColorModes::None;
   }
   writeModeStatus();
 }
@@ -322,9 +329,7 @@ void setup() {
   tempSensors.begin();
   tempSensors.setWaitForConversion(false);
 
-  ledRed = 100; ledGreen = 100; ledBlue = 100;
-  updateLED();
-
+  mqtt.onPowerChange(handlePowerFromMqtt);
   mqtt.onColorChange(handleColorFromMqtt);
   mqtt.onModeChange(handleModeFromMqtt);
   mqtt.init(WIFI_SSID, WIFI_PASSWORD);
