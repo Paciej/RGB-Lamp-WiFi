@@ -4,17 +4,20 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
+typedef void (*PowerChangeCallback)(bool);
 typedef void (*ColorChangeCallback)(int, int, int);
 typedef void (*ModeChangeCallback)(String);
 
 class LedMqttService {
 private:
+    PowerChangeCallback powerCallback = nullptr;
     ColorChangeCallback colorCallback = nullptr;
     ModeChangeCallback modeCallback = nullptr;
 
     // TOPICS
     // ---------------------------------------------
     // Subscribe
+    const char* topicPower = "lamp/cmd/power";
     const char* topicColor = "lamp/cmd/color";
     const char* topicMode =  "lamp/cmd/mode";
 
@@ -46,6 +49,7 @@ public:
     void update();
     void sendData(String data, const char* topic, bool retained = false);
     bool isConnected();
+    void onPowerChange(PowerChangeCallback callback);
     void onColorChange(ColorChangeCallback callback);
     void onModeChange(ModeChangeCallback callback);
 };
