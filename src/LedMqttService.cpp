@@ -44,7 +44,7 @@ void LedMqttService::init(const char* ssid, const char* password) {
 
     // Setup MQTT
     client->setServer(MQTT_BROKER, 1883);
-    client->setKeepAlive(90);
+    client->setKeepAlive(60);
     client->setCallback([this](char* topic, byte* payload, unsigned int length){callback(topic, payload, length);});
 }
 
