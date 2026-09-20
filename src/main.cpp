@@ -252,6 +252,7 @@ void updateTemp() {
     if (tempC == -127.00) {
       return; 
       Serial.println("ERROR127: temperature scanner does not work properly");
+      mqtt.sendData(String("Temperature sensor does not work properly"), mqtt.topicTempMessage);
     }
 
     if (tempC - lastWrittenTemp != 0) {

@@ -6,7 +6,7 @@
 void LedMqttService::reconnect() {
     while (!client->connected()) {
         Serial.println("Attempting MQTT connection...");
-        if (client->connect(device_id, topicConnection, 1, true, "Offline")) {
+        if (client->connect(device_id, MQTT_USERNAME, MQTT_PASSWORD, topicConnection, 1, true, "Offline")) {
             client->subscribe(topicPower);
             client->subscribe(topicColor);
             client->subscribe(topicMode);
@@ -18,6 +18,19 @@ void LedMqttService::reconnect() {
             delay(5000);
         }
     } 
+}
+
+bool LedMqttService::resolveMqttBroker() {
+    IPAddress brokerIp;
+
+    if (!WiFi.hostByName(MQTT_BROKER_HOST, brokerIp)) {
+        Serial.println("Could not resolve MQTT broker address");
+        return false;
+    }
+
+    Serial.printf("MQTT broker IP: %s", brokerIp);
+    client->setServer(brokerIp, MQTT_BROKER_PORT);
+    return true;
 }
 
 //********* Public Functions ***********/
@@ -43,7 +56,7 @@ void LedMqttService::init(const char* ssid, const char* password) {
     Serial.println(WiFi.localIP());
 
     // Setup MQTT
-    client->setServer(MQTT_BROKER, 1883);
+    resolveMqttBroker();    // find broker IP and set server
     client->setKeepAlive(60);
     client->setCallback([this](char* topic, byte* payload, unsigned int length){callback(topic, payload, length);});
 }
@@ -95,6 +108,7 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
 
 void LedMqttService::update() {
     if (!client->connected()) {
+        resolveMqttBroker();
         reconnect();
     }
 
