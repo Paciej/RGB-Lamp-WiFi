@@ -9,6 +9,7 @@ void LedMqttService::reconnect() {
         if (client->connect(device_id, MQTT_USERNAME, MQTT_PASSWORD, topicConnection, 1, true, "Offline")) {
             client->subscribe(topicPower);
             client->subscribe(topicColor);
+            client->subscribe(topicBrightness);
             client->subscribe(topicMode);
             sendData("Online", topicConnection, true);
         } else {
@@ -25,12 +26,10 @@ bool LedMqttService::resolveMqttBroker() {
 
     if (!WiFi.hostByName(MQTT_BROKER_HOST, brokerIp)) {
         Serial.println("Could not resolve MQTT broker address");
-
+        Serial.println("Connecting via hardcoded address");
+        Serial.printf("MQTT broker IP: %s\n", MQTT_BROKER);
         client->setServer(MQTT_BROKER, MQTT_BROKER_PORT);
-        if (!client->connected()) {
-            Serial.println("Could not connect to MQTT via set address");
-            return false;
-        }
+        return true;
     }
 
     Serial.printf("MQTT broker IP: %s", brokerIp);
@@ -93,16 +92,17 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
             }
         }
     }
-
-    if (strcmp(topic, topicMode) == 0) {
+    else if (strcmp(topic, topicBrightness) == 0) {
+        brightnessCallback(constrain(message.toInt(), 0, 255));
+    }
+    else if (strcmp(topic, topicMode) == 0) {
         if (message == "Wave" || message == "Pulse" || message == "Candle" || message == "None") {
             if (modeCallback) {
                 modeCallback(message);
             }
         }
     }
-
-    if (strcmp(topic, topicPower) == 0) {
+    else if (strcmp(topic, topicPower) == 0) {
         if (message == "ON" || message == "1") {
             powerCallback(true);
         } else if (message == "OFF" || message == "0") {
@@ -134,6 +134,10 @@ void LedMqttService::onPowerChange(PowerChangeCallback callback) {
 
 void LedMqttService::onColorChange(ColorChangeCallback callback) {
     this->colorCallback = callback;
+}
+
+void LedMqttService::onBrightnessChange(BrightnessChangeCallback callback) {
+    this->brightnessCallback = callback;
 }
 
 void LedMqttService::onModeChange(ModeChangeCallback callback) {
