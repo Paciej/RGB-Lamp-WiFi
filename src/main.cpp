@@ -1,6 +1,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <esp_system.h>
+#include <esp_mac.h>
 #include "LedMqttService.h"
 #include "Secrets.h"
 
@@ -9,11 +10,11 @@ void updateLED();
 
 /********* Const variables *********/
   // Pins
-const unsigned int PIN_RED = 25;
-const unsigned int PIN_GREEN = 26; 
-const unsigned int PIN_BLUE = 27;
-const unsigned int PIN_BUTTON = 21;
-const unsigned int PIN_TEMP = 18;
+const uint8_t PIN_RED = 25;
+const uint8_t PIN_GREEN = 26; 
+const uint8_t PIN_BLUE = 27;
+const uint8_t PIN_BUTTON = 21;
+const uint8_t PIN_TEMP = 18;
 
   // LEDC PWM channels for ESP32 Arduino Core 2.x
 const uint8_t PWM_CH_RED = 0;
@@ -23,10 +24,10 @@ const uint32_t PWM_FREQ = 5000;
 const uint8_t PWM_RESOLUTION = 8;
 
   // Other
-const unsigned int LED_CRIT_MAX_INTENSITY = 100;
-const unsigned long TEMP_MEASURE_INTERVAL = 5000;
-const unsigned long TEMP_CONVERSION_DELAY = 750;
-const unsigned long BTN_DEBOUNCE_DELAY = 50;
+const uint32_t LED_CRIT_MAX_INTENSITY = 100;
+const uint32_t TEMP_MEASURE_INTERVAL = 5000;
+const uint32_t TEMP_CONVERSION_DELAY = 750;
+const uint32_t BTN_DEBOUNCE_DELAY = 50;
 const float TEMP_CRIT = 31.f;
 const float TEMP_CRIT_REVERT = 29.f;
 
@@ -40,9 +41,12 @@ enum class ColorModes {
 ColorModes currentMode = ColorModes::None;
 
 // RGB LEDs [0..255]
-int ledRed = 0;
-int ledGreen = 0;
-int ledBlue = 0;
+uint8_t ledRed = 0;
+uint8_t ledGreen = 0;
+uint8_t ledBlue = 0;
+
+// [0..255]
+uint8_t brightness = 0;
 
 // MQTT server and connection
 LedMqttService mqtt;
