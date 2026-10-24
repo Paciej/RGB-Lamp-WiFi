@@ -6,12 +6,14 @@
 
 typedef void (*PowerChangeCallback)(bool);
 typedef void (*ColorChangeCallback)(int, int, int);
+typedef void (*BrightnessChangeCallback)(int);
 typedef void (*ModeChangeCallback)(String);
 
 class LedMqttService {
 private:
     PowerChangeCallback powerCallback = nullptr;
     ColorChangeCallback colorCallback = nullptr;
+    BrightnessChangeCallback brightnessCallback = nullptr;
     ModeChangeCallback modeCallback = nullptr;
 
     // TOPICS
@@ -19,6 +21,7 @@ private:
     // Subscribe
     const char* topicPower = "lamp/cmd/power";
     const char* topicColor = "lamp/cmd/color";
+    const char* topicBrightness = "lamp/cmd/brightness";
     const char* topicMode =  "lamp/cmd/mode";
 
     const char* device_id = "ESP32Client";
@@ -39,6 +42,7 @@ public:
     const char* topicTempMessage =  "lamp/status/temperature/message";
     const char* topicColorStatus =  "lamp/status/color";        
     const char* topicColorMessage = "lamp/status/color/message";
+    const char* topicBrightnessStatus = "lamp/status/brightness";
     const char* topicModeStatus =   "lamp/status/mode";         
     const char* topicModeMessage =  "lamp/status/mode/message"; 
 
@@ -52,6 +56,7 @@ public:
     bool isConnected();
     void onPowerChange(PowerChangeCallback callback);
     void onColorChange(ColorChangeCallback callback);
+    void onBrightnessChange(BrightnessChangeCallback callback);
     void onModeChange(ModeChangeCallback callback);
 };
 
