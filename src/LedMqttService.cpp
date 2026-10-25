@@ -4,6 +4,16 @@
 
 // ********* Private Functions ***********/
 // ----------------------------------------
+
+String LedMqttService::readDeviceId() {
+  uint8_t mac[6];
+  esp_read_mac(mac, ESP_MAC_WIFI_STA);
+  char buf[13];
+  snprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  Serial.printf("esp32 MAC address: %s", String(buf));
+  return String(buf);
+}
+
 void LedMqttService::reconnect() {
     while (!client->connected()) {
         Serial.println("Attempting MQTT connection...");
@@ -50,6 +60,8 @@ bool LedMqttService::resolveMqttBroker() {
 // ----------------------------------------
 void LedMqttService::init(const char* ssid, const char* password) {
     Serial.begin(115120);
+
+    readDeviceId();
 
     Serial.println();
     Serial.print("Connecting to ");
