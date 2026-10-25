@@ -28,7 +28,7 @@ private:
     // MQTT clients
     WiFiClient espClient;
     PubSubClient* client;
-    
+
     void callback(char* topic, byte* payload, unsigned int length);
     void reconnect();
     bool resolveMqttBroker();

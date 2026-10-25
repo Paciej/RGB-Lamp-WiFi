@@ -1,5 +1,6 @@
 #include "LedMqttService.h"
 #include "Secrets.h"
+#include <ESPmDNS.h>
 
 // ********* Private Functions ***********/
 // ----------------------------------------
@@ -12,6 +13,7 @@ void LedMqttService::reconnect() {
             client->subscribe(topicBrightness);
             client->subscribe(topicMode);
             sendData("Online", topicConnection, true);
+            Serial.println("Successfully connected to broker");
         } else {
             Serial.print("Failed, rc=");
             Serial.print(client->state()); 
@@ -22,18 +24,25 @@ void LedMqttService::reconnect() {
 }
 
 bool LedMqttService::resolveMqttBroker() {
-    IPAddress brokerIp;
 
-    if (!WiFi.hostByName(MQTT_BROKER_HOST, brokerIp)) {
-        Serial.println("Could not resolve MQTT broker address");
-        Serial.println("Connecting via hardcoded address");
+    IPAddress brokerIp = IPAddress(0, 0, 0, 0);
+
+    if (!MDNS.begin(this->device_id)) {
+        Serial.println("MDNS ERROR: Couldn't initialize mDNS");
         Serial.printf("MQTT broker IP: %s\n", MQTT_BROKER);
         client->setServer(MQTT_BROKER, MQTT_BROKER_PORT);
-        return true;
+        return false;
+    } 
+
+    uint8_t tries = 0;
+
+    while (++tries < 3) {
+        brokerIp = MDNS.queryHost(MQTT_BROKER_HOST, 3000);
+        if (brokerIp != IPAddress(0, 0, 0, 0)) { break; }
     }
 
+    (brokerIp != IPAddress(0, 0, 0, 0)) ? client->setServer(brokerIp, MQTT_BROKER_PORT) : client->setServer(MQTT_BROKER, MQTT_BROKER_PORT);
     Serial.printf("MQTT broker IP: %s", brokerIp);
-    client->setServer(brokerIp, MQTT_BROKER_PORT);
     return true;
 }
 
@@ -63,6 +72,7 @@ void LedMqttService::init(const char* ssid, const char* password) {
     resolveMqttBroker();    // find broker IP and set server
     client->setKeepAlive(60);
     client->setCallback([this](char* topic, byte* payload, unsigned int length){callback(topic, payload, length);});
+    reconnect();
 }
 
 void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
