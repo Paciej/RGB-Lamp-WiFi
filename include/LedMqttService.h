@@ -30,6 +30,7 @@ private:
     PubSubClient* client;
 
     void callback(char* topic, byte* payload, unsigned int length);
+    String readDeviceId();
     void reconnect();
     bool resolveMqttBroker();
 public:
