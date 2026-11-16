@@ -9,27 +9,35 @@ typedef void (*ColorChangeCallback)(int, int, int);
 typedef void (*BrightnessChangeCallback)(int);
 typedef void (*ModeChangeCallback)(String);
 
+static constexpr size_t MAX_SIZE = 48;
+
 class LedMqttService {
 private:
     PowerChangeCallback powerCallback = nullptr;
     ColorChangeCallback colorCallback = nullptr;
     BrightnessChangeCallback brightnessCallback = nullptr;
     ModeChangeCallback modeCallback = nullptr;
+    
+    // MQTT clients
+    WiFiClient wifiClient;
+    PubSubClient* mqttClient;
+
+    char device_id[13];
+    char pf_cmd[MAX_SIZE];
+    char pf_status[MAX_SIZE];
+    size_t cmdLen = 0;
+    size_t statusLen = 0;
 
     // TOPICS
     // ---------------------------------------------
     // Subscribe
-    const char* topicPower = "lamp/cmd/power";
-    const char* topicColor = "lamp/cmd/color";
-    const char* topicBrightness = "lamp/cmd/brightness";
-    const char* topicMode =  "lamp/cmd/mode";
-
-    const char* device_id = "ESP32Client";
-    // MQTT clients
-    WiFiClient espClient;
-    PubSubClient* client;
+    const char* topicPower = "power";
+    const char* topicColor = "color";
+    const char* topicBrightness = "brightness";
+    const char* topicMode =  "mode";
 
     void callback(char* topic, byte* payload, unsigned int length);
+    const char* commandOf(const char* topic) const;
     String readDeviceId();
     void reconnect();
     bool resolveMqttBroker();
@@ -37,19 +45,17 @@ public:
     // TOPICS
     // ---------------------------------------------
     // Publish
-    const char* topicPowerStatus =  "lamp/status/power";        
-    const char* topicConnection =   "lamp/status/connection";   
-    const char* topicTemp =         "lamp/status/temperature";  
-    const char* topicTempMessage =  "lamp/status/temperature/message";
-    const char* topicColorStatus =  "lamp/status/color";        
-    const char* topicColorMessage = "lamp/status/color/message";
-    const char* topicBrightnessStatus = "lamp/status/brightness";
-    const char* topicModeStatus =   "lamp/status/mode";         
-    const char* topicModeMessage =  "lamp/status/mode/message"; 
+    const char* topicPowerStatus =  "power";        
+    const char* topicConnection =   "connection";   
+    const char* topicTemp =         "temperature";  
+    const char* topicTempMessage =  "temperature/message";
+    const char* topicColorStatus =  "color";        
+    const char* topicColorMessage = "color/message";
+    const char* topicBrightnessStatus = "brightness";
+    const char* topicModeStatus =   "mode";         
+    const char* topicModeMessage =  "mode/message"; 
 
-    LedMqttService() {
-        client = new PubSubClient(espClient);
-    }
+    LedMqttService();
 
     void init(const char* ssid, const char* password);
     void update();
