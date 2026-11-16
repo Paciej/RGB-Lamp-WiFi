@@ -1,6 +1,13 @@
 #include "LedMqttService.h"
 #include "Secrets.h"
+#include <esp_mac.h>
 #include <ESPmDNS.h>
+
+// ********* Constructors **********/
+// ---------------------------------
+LedMqttService::LedMqttService() {
+    this->mqttClient = new PubSubClient(this->wifiClient);
+}
 
 // ********* Private Functions ***********/
 // ----------------------------------------
@@ -8,25 +15,30 @@
 String LedMqttService::readDeviceId() {
   uint8_t mac[6];
   esp_read_mac(mac, ESP_MAC_WIFI_STA);
-  char buf[13];
-  snprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-  Serial.printf("esp32 MAC address: %s", String(buf));
-  return String(buf);
+  snprintf(device_id, sizeof(device_id), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  Serial.printf("esp32 MAC address: %s", device_id);
+  return String(device_id);
+}
+
+const char* LedMqttService::commandOf(const char* topic) const {
+    return strncmp(topic, pf_cmd, cmdLen) == 0 ? topic + cmdLen : nullptr;
 }
 
 void LedMqttService::reconnect() {
-    while (!client->connected()) {
+    char filter[MAX_SIZE + 2];
+    snprintf(filter, sizeof(filter), "%s#", this->pf_cmd);
+    char tConnect[statusLen + strlen(topicConnection) + 1];
+    snprintf(tConnect, sizeof(tConnect), "%s%s", pf_status, topicConnection);
+    Serial.printf("topics to subscribe: %s\n topic connection: %s\n", filter, tConnect);
+    while (!mqttClient->connected()) {
         Serial.println("Attempting MQTT connection...");
-        if (client->connect(device_id, MQTT_USERNAME, MQTT_PASSWORD, topicConnection, 1, true, "Offline")) {
-            client->subscribe(topicPower);
-            client->subscribe(topicColor);
-            client->subscribe(topicBrightness);
-            client->subscribe(topicMode);
+        if (mqttClient->connect(device_id, MQTT_USERNAME, MQTT_PASSWORD, tConnect, 1, true, "Offline")) {
+            mqttClient->subscribe(filter, 1);
             sendData("Online", topicConnection, true);
             Serial.println("Successfully connected to broker");
         } else {
             Serial.print("Failed, rc=");
-            Serial.print(client->state()); 
+            Serial.print(mqttClient->state()); 
             Serial.println("");
             delay(5000);
         }
@@ -40,7 +52,7 @@ bool LedMqttService::resolveMqttBroker() {
     if (!MDNS.begin(this->device_id)) {
         Serial.println("MDNS ERROR: Couldn't initialize mDNS");
         Serial.printf("MQTT broker IP: %s\n", MQTT_BROKER);
-        client->setServer(MQTT_BROKER, MQTT_BROKER_PORT);
+        mqttClient->setServer(MQTT_BROKER, MQTT_BROKER_PORT);
         return false;
     } 
 
@@ -51,7 +63,7 @@ bool LedMqttService::resolveMqttBroker() {
         if (brokerIp != IPAddress(0, 0, 0, 0)) { break; }
     }
 
-    (brokerIp != IPAddress(0, 0, 0, 0)) ? client->setServer(brokerIp, MQTT_BROKER_PORT) : client->setServer(MQTT_BROKER, MQTT_BROKER_PORT);
+    (brokerIp != IPAddress(0, 0, 0, 0)) ? mqttClient->setServer(brokerIp, MQTT_BROKER_PORT) : mqttClient->setServer(MQTT_BROKER, MQTT_BROKER_PORT);
     Serial.printf("MQTT broker IP: %s", brokerIp);
     return true;
 }
@@ -61,11 +73,17 @@ bool LedMqttService::resolveMqttBroker() {
 void LedMqttService::init(const char* ssid, const char* password) {
     Serial.begin(115120);
 
-    readDeviceId();
+    // Read mac and create prefixes
+    uint8_t mac[6];
+    esp_read_mac(mac, ESP_MAC_WIFI_STA);
+    snprintf(device_id, sizeof(device_id), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    Serial.printf("esp32 MAC address: %s\n", device_id);
 
-    Serial.println();
-    Serial.print("Connecting to ");
-    Serial.println(ssid);
+    cmdLen = snprintf(this->pf_cmd, 48, "candelum/%s/cmd/", device_id);
+    statusLen = snprintf(this->pf_status, 48, "candelum/%s/status/", device_id);
+    Serial.printf("cmd prefix: %s\n status prefix: %s\n", pf_cmd, pf_status);
+
+    Serial.printf("\nConnecting to %s", ssid);
 
     WiFi.begin(ssid, password);
     WiFi.setAutoReconnect(true);
@@ -75,19 +93,23 @@ void LedMqttService::init(const char* ssid, const char* password) {
         Serial.print(".");
     }
 
-    Serial.println("");
-    Serial.println("WiFi connected");
-    Serial.println("IP address: ");
-    Serial.println(WiFi.localIP());
+    Serial.printf("\nWiFi Connected\n IP address: %s\n", (String)WiFi.localIP());
 
     // Setup MQTT
-    resolveMqttBroker();    // find broker IP and set server
-    client->setKeepAlive(60);
-    client->setCallback([this](char* topic, byte* payload, unsigned int length){callback(topic, payload, length);});
+    //resolveMqttBroker();    // find broker IP and set server
+    mqttClient->setServer(MQTT_BROKER, MQTT_BROKER_PORT);
+    mqttClient->setKeepAlive(60);
+    mqttClient->setCallback([this](char* topic, byte* payload, unsigned int length){callback(topic, payload, length);});
     reconnect();
 }
 
 void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
+    const char* name = commandOf(topic);
+    if (!name) {
+        Serial.print("\nThis topic has wrong prefix - light won't process it");
+        return;
+    }
+
     String message = "";
     for (int i = 0; i < length; i++) {
         message += (char)payload[i];
@@ -95,7 +117,7 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
     }
     Serial.println();
 
-    if (strcmp(topic, topicColor) == 0) {
+    if (strcmp(name, topicColor) == 0) {
         char comma = (message.indexOf(',') == -1) ? '.' : ',';
         int firstComma = message.indexOf(comma);
         int secondComma = message.indexOf(comma, firstComma + 1);
@@ -114,17 +136,17 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
             }
         }
     }
-    else if (strcmp(topic, topicBrightness) == 0) {
+    else if (strcmp(name, topicBrightness) == 0) {
         brightnessCallback(constrain(message.toInt(), 0, 255));
     }
-    else if (strcmp(topic, topicMode) == 0) {
+    else if (strcmp(name, topicMode) == 0) {
         if (message == "Wave" || message == "Pulse" || message == "Candle" || message == "None") {
             if (modeCallback) {
                 modeCallback(message);
             }
         }
     }
-    else if (strcmp(topic, topicPower) == 0) {
+    else if (strcmp(name, topicPower) == 0) {
         if (message == "ON" || message == "1") {
             powerCallback(true);
         } else if (message == "OFF" || message == "0") {
@@ -134,20 +156,23 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
 }
 
 void LedMqttService::update() {
-    if (!client->connected()) {
+    if (!mqttClient->connected()) {
         resolveMqttBroker();
         reconnect();
     }
 
-    client->loop();
+    mqttClient->loop();
 }
 
 void LedMqttService::sendData(String data, const char* topic, bool retained) {
-    client->publish(topic, data.c_str(), (boolean)retained);
+    char t[MAX_SIZE];
+    snprintf(t, sizeof(t), "%s%s", pf_status, topic);
+    Serial.printf("Send topic: %s", t);
+    mqttClient->publish(t, data.c_str(), retained);
 }
 
 bool LedMqttService::isConnected() {
-    return client->connected();
+    return mqttClient->connected();
 }
 
 void LedMqttService::onPowerChange(PowerChangeCallback callback) {

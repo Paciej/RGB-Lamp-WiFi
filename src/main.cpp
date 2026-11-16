@@ -1,7 +1,6 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <esp_system.h>
-#include <esp_mac.h>
 #include "LedMqttService.h"
 #include "Secrets.h"
 
