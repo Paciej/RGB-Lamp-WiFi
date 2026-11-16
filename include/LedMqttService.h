@@ -10,6 +10,14 @@ typedef void (*BrightnessChangeCallback)(int);
 typedef void (*ModeChangeCallback)(String);
 
 static constexpr size_t MAX_SIZE = 48;
+constexpr const char* infoJson = 
+"{\"schema\":1,"
+"\"fw\":\"0.2.0\","
+"\"capabilities\":{"
+    "\"color\":true,"
+    "\"brightness\":true,"
+    "\"modes\":[\"None\",\"Wave\",\"Candle\",\"Pulse\"],"
+    "\"temperature\":true}}";
 
 class LedMqttService {
 private:
@@ -60,6 +68,7 @@ public:
     void init(const char* ssid, const char* password);
     void update();
     void sendData(String data, const char* topic, bool retained = false);
+    void sendInfo();
     bool isConnected();
     void onPowerChange(PowerChangeCallback callback);
     void onColorChange(ColorChangeCallback callback);
