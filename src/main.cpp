@@ -79,8 +79,8 @@ DallasTemperature tempSensors(&oneWire);
 /********** LOGIC **********/
 void writeLedStatus() {
   if (!mqtt.isConnected()) return;
-  String response = String(ledRed) + "," + String(ledGreen) + "," + String(ledBlue);
-  mqtt.sendData(response, mqtt.topicColorStatus, true);
+  String response = "RGB: " + String(ledRed) + "," + String(ledGreen) + "," + String(ledBlue);
+  mqtt.sendData(response, mqtt.topicColorStatus);
 }
 
 void writeModeStatus() {
@@ -112,13 +112,13 @@ void handlePowerFromMqtt(bool power) {
     ledGreen = 0;
     ledBlue = 0;
     isOn = false;
-    mqtt.sendData("OFF", mqtt.topicPowerStatus, true);
+    mqtt.sendData("OFF", mqtt.topicPowerStatus);
     updateLED();
   } else if (power && !isOn) {
     ledRed = baseRed;
     ledGreen = baseGreen;
     ledBlue = baseBlue;
-    mqtt.sendData("ON", mqtt.topicPowerStatus, true);
+    mqtt.sendData("ON", mqtt.topicPowerStatus);
     updateLED();
     isOn = true;
   }
@@ -255,7 +255,8 @@ void updateTemp() {
     }
 
     if (tempC - lastWrittenTemp != 0) {
-      mqtt.sendData(String(tempC), mqtt.topicTemp);
+      String response = String(tempC) + "C";
+      mqtt.sendData(response, mqtt.topicTemp);
       lastWrittenTemp = tempC;
     }
 
