@@ -80,7 +80,7 @@ DallasTemperature tempSensors(&oneWire);
 void writeLedStatus() {
   if (!mqtt.isConnected()) return;
   String response = "RGB: " + String(ledRed) + "," + String(ledGreen) + "," + String(ledBlue);
-  mqtt.sendData(response);
+  mqtt.sendData(response, mqtt.topicColor);
   //Serial.printf("RGB values: R=%d G=%d B=%d \n", ledRed, ledGreen, ledBlue);
 }
 
@@ -95,6 +95,7 @@ void handleColorFromMqtt(int r, int g, int b) {
 
 // handle getting mode from callback
 void handleModeFromMqtt(String mode) {
+  mqtt.sendData(mode, mqtt.topicMode);
   if (mode == "Wave") {
       currentMode = ColorModes::Wave;
   } else if (mode == "Pulse") {
@@ -153,7 +154,7 @@ void handleModes() {
 
   if (isLedTempCrit) {
     currentMode = ColorModes::None;
-    //mqtt.sendData("Effect turned off due to critical temperature!", mqtt.topicMode);
+    mqtt.sendData("Effect turned off due to critical temperature!", mqtt.topicMode);
     // Warning color
     ledRed = LED_CRIT_MAX_INTENSITY;
     ledGreen = 0;
@@ -185,7 +186,7 @@ void updateLED() {
       ledcWrite(PWM_CH_BLUE, ledBlue);
       writeLedStatus();
   } else {
-      //mqtt.sendData("Temperature is too high", mqtt.topicTemp);
+      mqtt.sendData("Temperature is too high", mqtt.topicTemp);
   }
 }
 
@@ -210,7 +211,7 @@ void updateTemp() {
 
     if (tempC - lastWrittenTemp != 0) {
       String response = String(tempC) + "C";
-      //mqtt.sendData(response, mqtt.topicTemp);
+      mqtt.sendData(response, mqtt.topicTemp);
       lastWrittenTemp = tempC;
     }
 
@@ -219,7 +220,7 @@ void updateTemp() {
       currentMode = ColorModes::None;
       
       String response = "ALARM TEMP: Temperature is over " + String(TEMP_CRIT) + "C";
-      //mqtt.sendData(response, mqtt.topicMessage);
+      mqtt.sendData(response, mqtt.topicMessage);
       Serial.printf("%s", response);
 
       ledRed = (ledRed > LED_CRIT_MAX_INTENSITY) ? LED_CRIT_MAX_INTENSITY : ledRed;
@@ -290,14 +291,16 @@ void setup() {
   mqtt.onModeChange(handleModeFromMqtt);
   mqtt.init(WIFI_SSID, WIFI_PASSWORD);
   writeLedStatus();
+  mqtt.sendData("Test message", mqtt.topicMessage);
+  mqtt.sendData("None", mqtt.topicMode);
 }
 
 void loop() {
 
   mqtt.update();
-  updateTemp();    
-  updateButton(); 
-  handleModes(); 
+  //updateTemp();    
+  //updateButton(); 
+  //handleModes(); 
 
   delay(10);
 }
