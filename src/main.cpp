@@ -115,7 +115,7 @@ void writeModeStatus() {
 void handleBrightnessFromMqtt(int _brightness) {
   brightness = _brightness;
   updateLED();
-  mqtt.sendData((String)(brightness), mqtt.topicBrightnessStatus, true);
+  mqtt.sendData((String)(brightness), mqtt.topicBrightnessStatus);
 }
 
 void handlePowerFromMqtt(bool power) {
