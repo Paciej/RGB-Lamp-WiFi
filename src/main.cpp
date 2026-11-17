@@ -41,9 +41,9 @@ enum class ColorModes {
 ColorModes currentMode = ColorModes::None;
 
 // RGB LEDs [0..255]
-uint8_t ledRed = 0;
-uint8_t ledGreen = 0;
-uint8_t ledBlue = 0;
+uint8_t ledRed = 100;
+uint8_t ledGreen = 100;
+uint8_t ledBlue = 100;
 
 // LED's brightness [0..255]
 uint8_t brightness = 255;
@@ -143,8 +143,10 @@ void handleColorFromMqtt(int r, int g, int b) {
   ledRed = r;
   ledGreen = g;
   ledBlue = b;
-  currentMode = ColorModes::None;
-  writeModeStatus();
+  if (currentMode != ColorModes::None) {
+    currentMode = ColorModes::None;
+    writeModeStatus();
+  }
   updateLED();
 }
 
@@ -347,8 +349,9 @@ void setup() {
   mqtt.onBrightnessChange(handleBrightnessFromMqtt);
   mqtt.onModeChange(handleModeFromMqtt);
   mqtt.init(WIFI_SSID, WIFI_PASSWORD);
-  writeLedStatus();
+  updateLED();
   writeModeStatus();
+  mqtt.sendData(String(brightness), mqtt.topicBrightnessStatus, true);
 }
 
 void loop() {

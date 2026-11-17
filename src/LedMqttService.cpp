@@ -24,6 +24,18 @@ const char* LedMqttService::commandOf(const char* topic) const {
     return strncmp(topic, pf_cmd, cmdLen) == 0 ? topic + cmdLen : nullptr;
 }
 
+void LedMqttService::sendInfo() {
+    char topic[48];
+    int n = snprintf(topic, sizeof(topic), "candelum/%s/info", device_id);
+    if (n < 0 || n >= (int)sizeof(topic)) return;
+
+    char payload[200];
+    n = snprintf(payload, sizeof(payload), infoJson);
+
+    bool ok = mqttClient->publish(topic, payload, true);
+    Serial.printf("Info publish %s (%d B)\n", ok ? "Ok" : "Failed", n);
+}
+
 void LedMqttService::reconnect() {
     char filter[MAX_SIZE + 2];
     snprintf(filter, sizeof(filter), "%s#", this->pf_cmd);
@@ -165,20 +177,8 @@ void LedMqttService::update() {
 void LedMqttService::sendData(String data, const char* topic, bool retained) {
     char t[MAX_SIZE];
     snprintf(t, sizeof(t), "%s%s", pf_status, topic);
+    Serial.printf("send topic: %s\t data: %s\t retain: %d\n", t, data, retained);
     mqttClient->publish(t, data.c_str(), retained);
-}
-
-
-void LedMqttService::sendInfo() {
-    char topic[48];
-    int n = snprintf(topic, sizeof(topic), "candelum/%s/info", device_id);
-    if (n < 0 || n >= (int)sizeof(topic)) return;
-
-    char payload[200];
-    n = snprintf(payload, sizeof(payload), infoJson);
-
-    bool ok = mqttClient->publish(topic, payload, true);
-    Serial.printf("Info publish %s (%d B)\n", ok ? "Ok" : "Failed", n);
 }
 
 bool LedMqttService::isConnected() {

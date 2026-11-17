@@ -49,6 +49,7 @@ private:
     String readDeviceId();
     void reconnect();
     bool resolveMqttBroker();
+    void sendInfo();
 public:
     // TOPICS
     // ---------------------------------------------
@@ -68,7 +69,6 @@ public:
     void init(const char* ssid, const char* password);
     void update();
     void sendData(String data, const char* topic, bool retained = false);
-    void sendInfo();
     bool isConnected();
     void onPowerChange(PowerChangeCallback callback);
     void onColorChange(ColorChangeCallback callback);
