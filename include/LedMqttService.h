@@ -28,7 +28,6 @@ private:
     
     void callback(char* topic, byte* payload, unsigned int length);
     void reconnect();
-    bool resolveMqttBroker();
 public:
     // TOPICS
     // ---------------------------------------------
