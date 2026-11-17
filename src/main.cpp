@@ -1,11 +1,11 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <esp_system.h>
-#include <esp_mac.h>
 #include "LedMqttService.h"
 #include "Secrets.h"
 
 /********* Function declarations *********/
+String readDeviceId();
 uint32_t applyWithBrightness(uint8_t value, uint8_t brightness);
 void updateLED();
 
@@ -82,6 +82,7 @@ OneWire oneWire(PIN_TEMP);
 DallasTemperature tempSensors(&oneWire);
 
 /********** LOGIC **********/
+String readDeviceId() {}
 uint32_t applyWithBrightness(uint8_t value, uint8_t brightness) {
   return (uint32_t)(value * (brightness / 255.f));
 }
