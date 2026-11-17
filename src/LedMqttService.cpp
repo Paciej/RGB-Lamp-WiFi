@@ -4,7 +4,7 @@
 // ----------------------------------------
 void LedMqttService::reconnect() {
     while (!client->connected()) {
-        Serial.println("Attempting MQTT connection...");
+        Serial.print("Attempting MQTT connection...");
         if (client->connect(device_id)) {
             Serial.println("Connected");
             client->subscribe(topicColor);
@@ -39,21 +39,17 @@ void LedMqttService::init(const char* ssid, const char* password) {
     Serial.println(WiFi.localIP());
 
     // Setup MQTT
-    client->setServer("192.168.163.78", 1883);
+    client->setServer(mqtt_server, 1883);
     client->setCallback([this](char* topic, byte* payload, unsigned int length){callback(topic, payload, length);});
 }
 
 void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
-    Serial.printf("Received topic: %s\n", topic);
-    Serial.print("Value: ");
     String message = "";
     for (int i = 0; i < length; i++) {
         message += (char)payload[i];
-        Serial.print((char)payload[i]);
     }
-    Serial.println();
 
-    if (strcmp(topic, topicColor) == 0) {
+    if (strcmp(message.c_str(), topicColor) == 0) {
         int firstComma = message.indexOf(',');
         int secondComma = message.indexOf(',', firstComma + 1);
         
@@ -72,7 +68,7 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
         }
     }
 
-    if (strcmp(topic, topicMode) == 0) {
+    if (strcmp(message.c_str(), topicMode) == 0) {
         if (message == "Wave" || message == "Pulse" || message == "Candle") {
             if (modeCallback) {
                 modeCallback(message);
