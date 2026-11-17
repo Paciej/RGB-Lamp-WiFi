@@ -6,11 +6,11 @@
 void LedMqttService::reconnect() {
     while (!client->connected()) {
         Serial.println("Attempting MQTT connection...");
-        if (client->connect(device_id, topicConnection, 1, true, "Offline")) {
+        if (client->connect(device_id)) {
             client->subscribe(topicPower);
             client->subscribe(topicColor);
             client->subscribe(topicMode);
-            sendData("Online", topicConnection, true);
+            sendData("Connected", topicConnection);
         } else {
             Serial.print("Failed, rc=");
             Serial.print(client->state()); 
