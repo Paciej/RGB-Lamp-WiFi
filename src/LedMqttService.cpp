@@ -25,12 +25,7 @@ bool LedMqttService::resolveMqttBroker() {
 
     if (!WiFi.hostByName(MQTT_BROKER_HOST, brokerIp)) {
         Serial.println("Could not resolve MQTT broker address");
-
-        client->setServer(MQTT_BROKER, MQTT_BROKER_PORT);
-        if (!client->connected()) {
-            Serial.println("Could not connect to MQTT via set address");
-            return false;
-        }
+        return false;
     }
 
     Serial.printf("MQTT broker IP: %s", brokerIp);
