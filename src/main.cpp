@@ -48,7 +48,6 @@ int ledBlue = 0;
 LedMqttService mqtt;
 
 // state variables
-bool isOn = true;
 bool isLedTempCrit = false;
 bool tempRequestPending = false;
 unsigned long lastTempRequest = 0;
@@ -101,24 +100,6 @@ void writeModeStatus() {
       break;
   }
   mqtt.sendData(modeString, mqtt.topicModeStatus);
-}
-
-void handlePowerFromMqtt(bool power) {
-  if (!power && isOn) {
-    baseRed = ledRed;
-    baseGreen = ledGreen;
-    baseBlue = ledBlue;
-    ledRed = 0;
-    ledGreen = 0;
-    ledBlue = 0;
-    isOn = false;
-    updateLED();
-  } else if (power && !isOn) {
-    ledRed = baseRed;
-    ledGreen = baseGreen;
-    ledBlue = baseBlue;
-    isOn = true;
-  }
 }
 
 // handle getting color from callback
@@ -268,7 +249,7 @@ void updateTemp() {
       updateLED();
     } else if (isLedTempCrit && tempC < TEMP_CRIT_REVERT) {
       isLedTempCrit = false;
-      mqtt.sendData("Temperature cool down. All functions are avaiable", mqtt.topicTempMessage);
+      mqtt.sendData("Temperature cool down. All functions are viable", mqtt.topicTempMessage);
     }
   }
 }
@@ -335,10 +316,9 @@ void setup() {
 void loop() {
 
   mqtt.update();
-  if (isOn) {
-    updateTemp();    
-    updateButton(); 
-    handleModes(); 
-  }
+  updateTemp();    
+  updateButton(); 
+  handleModes(); 
+
   delay(10);
 }
