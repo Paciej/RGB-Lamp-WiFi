@@ -30,16 +30,16 @@ void LedMqttService::reconnect() {
     char tConnect[statusLen + strlen(topicConnection) + 1];
     snprintf(tConnect, sizeof(tConnect), "%s%s", pf_status, topicConnection);
     Serial.printf("topics to subscribe: %s\n topic connection: %s\n", filter, tConnect);
-
     while (!mqttClient->connected()) {
         Serial.println("Attempting MQTT connection...");
         if (mqttClient->connect(device_id, MQTT_USERNAME, MQTT_PASSWORD, tConnect, 1, true, "Offline")) {
             mqttClient->subscribe(filter, 1);
-            sendInfo();
             sendData("Online", topicConnection, true);
             Serial.println("Successfully connected to broker");
         } else {
-            Serial.printf("Failed, rc=%d\n", mqttClient->state());
+            Serial.print("Failed, rc=");
+            Serial.print(mqttClient->state()); 
+            Serial.println("");
             delay(5000);
         }
     } 
@@ -77,11 +77,14 @@ void LedMqttService::init(const char* ssid, const char* password) {
     uint8_t mac[6];
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
     snprintf(device_id, sizeof(device_id), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    Serial.printf("esp32 MAC address: %s\n", device_id);
 
     cmdLen = snprintf(this->pf_cmd, 48, "candelum/%s/cmd/", device_id);
     statusLen = snprintf(this->pf_status, 48, "candelum/%s/status/", device_id);
+    Serial.printf("cmd prefix: %s\n status prefix: %s\n", pf_cmd, pf_status);
 
     Serial.printf("\nConnecting to %s", ssid);
+
     WiFi.begin(ssid, password);
     WiFi.setAutoReconnect(true);
 
@@ -95,7 +98,6 @@ void LedMqttService::init(const char* ssid, const char* password) {
     // Setup MQTT
     //resolveMqttBroker();    // find broker IP and set server
     mqttClient->setServer(MQTT_BROKER, MQTT_BROKER_PORT);
-    mqttClient->setBufferSize(512);
     mqttClient->setKeepAlive(60);
     mqttClient->setCallback([this](char* topic, byte* payload, unsigned int length){callback(topic, payload, length);});
     reconnect();
@@ -165,20 +167,8 @@ void LedMqttService::update() {
 void LedMqttService::sendData(String data, const char* topic, bool retained) {
     char t[MAX_SIZE];
     snprintf(t, sizeof(t), "%s%s", pf_status, topic);
+    Serial.printf("Send topic: %s", t);
     mqttClient->publish(t, data.c_str(), retained);
-}
-
-
-void LedMqttService::sendInfo() {
-    char topic[48];
-    int n = snprintf(topic, sizeof(topic), "candelum/%s/info", device_id);
-    if (n < 0 || n >= (int)sizeof(topic)) return;
-
-    char payload[200];
-    n = snprintf(payload, sizeof(payload), infoJson);
-
-    bool ok = mqttClient->publish(topic, payload, true);
-    Serial.printf("Info publish %s (%d B)\n", ok ? "Ok" : "Failed", n);
 }
 
 bool LedMqttService::isConnected() {
