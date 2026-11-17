@@ -1,12 +1,11 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <esp_system.h>
+#include <esp_mac.h>
 #include "LedMqttService.h"
 #include "Secrets.h"
 
 /********* Function declarations *********/
-String readDeviceId();
-uint32_t applyWithBrightness(uint8_t value, uint8_t brightness);
 void updateLED();
 
 /********* Const variables *********/
@@ -46,8 +45,8 @@ uint8_t ledRed = 0;
 uint8_t ledGreen = 0;
 uint8_t ledBlue = 0;
 
-// LED's brightness [0..255]
-uint8_t brightness = 255;
+// [0..255]
+uint8_t brightness = 0;
 
 // MQTT server and connection
 LedMqttService mqtt;
@@ -82,10 +81,6 @@ OneWire oneWire(PIN_TEMP);
 DallasTemperature tempSensors(&oneWire);
 
 /********** LOGIC **********/
-String readDeviceId() {}
-uint32_t applyWithBrightness(uint8_t value, uint8_t brightness) {
-  return (uint32_t)(value * (brightness / 255.f));
-}
 void writeLedStatus() {
   if (!mqtt.isConnected()) return;
   String response = String(ledRed) + "," + String(ledGreen) + "," + String(ledBlue);
@@ -110,12 +105,6 @@ void writeModeStatus() {
       break;
   }
   mqtt.sendData(modeString, mqtt.topicModeStatus);
-}
-
-void handleBrightnessFromMqtt(int _brightness) {
-  brightness = _brightness;
-  updateLED();
-  mqtt.sendData((String)(brightness), mqtt.topicBrightnessStatus);
 }
 
 void handlePowerFromMqtt(bool power) {
@@ -241,9 +230,9 @@ void handleModes() {
 void updateLED() {
   if (!isLedTempCrit || 
      (ledRed <= LED_CRIT_MAX_INTENSITY && ledGreen <= LED_CRIT_MAX_INTENSITY && ledBlue <= LED_CRIT_MAX_INTENSITY)) {
-      ledcWrite(PWM_CH_RED, applyWithBrightness(ledRed, brightness));
-      ledcWrite(PWM_CH_GREEN, applyWithBrightness(ledGreen, brightness));
-      ledcWrite(PWM_CH_BLUE, applyWithBrightness(ledBlue, brightness));
+      ledcWrite(PWM_CH_RED, ledRed);
+      ledcWrite(PWM_CH_GREEN, ledGreen);
+      ledcWrite(PWM_CH_BLUE, ledBlue);
       writeLedStatus();
   } else {
       mqtt.sendData("Temperature is too high", mqtt.topicColorMessage);
@@ -346,7 +335,6 @@ void setup() {
 
   mqtt.onPowerChange(handlePowerFromMqtt);
   mqtt.onColorChange(handleColorFromMqtt);
-  mqtt.onBrightnessChange(handleBrightnessFromMqtt);
   mqtt.onModeChange(handleModeFromMqtt);
   mqtt.init(WIFI_SSID, WIFI_PASSWORD);
   writeLedStatus();
