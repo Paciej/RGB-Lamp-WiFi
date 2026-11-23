@@ -17,6 +17,7 @@ const uint8_t PIN_TEMP = 18;
 /********* Objects *********/
 LightController light(LightPins(PIN_RED, PIN_GREEN, PIN_BLUE));
 ThermalGuard guard(light, PIN_TEMP);
+EffectEngine effects(light);
 LedMqttService mqtt;
 
 /****** Variables *******/
@@ -27,18 +28,6 @@ unsigned long lastDebounceTime = 0;
 
   // mqtt
 bool wasMqttConnected = false;
-
-// mode 
-  // wave
-float waveSpeed = 60.0;    
-  // pulse   
-float pulseSpeed = 3.0;   
-int baseRed = 0, baseGreen = 0, baseBlue = 0; // for pulse mode remember state
-  // candle
-unsigned long lastFlicker = 0;
-int flickerInterval = 100;
-int targetBrightness = 255;
-int currentBrightness = 255;
 
 /****** MQTT handlers *******/
 void handleBrightnessFromMqtt(int brightness) { light.setBrightness(brightness); }
@@ -51,62 +40,7 @@ void handleModeFromMqtt(String mode) {
     mqtt.sendData("Effect blocked due to critical temperature!", mqtt.topicModeMessage);
     return;
   }
-  light.setMode(m);
-}
-
-#pragma region led modes
-void waveMode() {
-  float angle = fmod((millis() * waveSpeed) / 1000.0, 360.0);
-  
-  light.setEffectColor(Rgb{
-      (uint8_t)((sin(angle * PI / 180.0) + 1.0) * 127.5),
-      (uint8_t)((sin((angle + 120) * PI / 180.0) + 1.0) * 127.5),
-      (uint8_t)((sin((angle + 240) * PI / 180.0) + 1.0) * 127.5)
-    });
-}
-
-void pulseMode() {
-  float angle = (millis() * pulseSpeed) / 1000.0;
-  float f = (sin(angle) + 1.0) / 2.0; 
-  const Rgb& base = light.state().color;
-
-  light.setEffectColor(Rgb{
-    (uint8_t)(base.r * f),
-    (uint8_t)(base.g * f),
-    (uint8_t)(base.b * f)
-  });
-}
-
-void candleMode() {
-  if (millis() - lastFlicker > flickerInterval) {
-    lastFlicker = millis();
-    targetBrightness = random(120, 256);
-    flickerInterval = random(50, 150); 
-  }
-
-  if (currentBrightness < targetBrightness) currentBrightness += 5;
-  if (currentBrightness > targetBrightness) currentBrightness -= 5;
-  currentBrightness = constrain(currentBrightness, 0, 255);
-  int greenFlicker = random(-20, 20);
-
-  light.setEffectColor(Rgb{
-    (uint8_t)(currentBrightness),
-    (uint8_t)(constrain(((currentBrightness * 140) / 255) + greenFlicker, 0, 255)),
-    (uint8_t)((currentBrightness * 10) / 255)
-  });
-}
-#pragma endregion
-
-void handleModes() {
-  LightMode mode = light.state().mode;
-  if (mode == LightMode::None) return;
-
-  switch (mode) {
-    case LightMode::Wave : waveMode(); break;
-    case LightMode::Pulse : pulseMode(); break;
-    case LightMode::Candle : candleMode(); break;
-    default: break;
-  }
+  effects.start(m);
 }
 
 void updateButton() {
@@ -191,7 +125,7 @@ void loop() {
 
   if (light.state().power) {
     updateButton(); 
-    handleModes(); 
+    effects.update();
   }
 
   light.update();
