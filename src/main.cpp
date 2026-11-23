@@ -1,14 +1,11 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <esp_system.h>
+#include "LightController.h"
 #include "LedMqttService.h"
 #include "Secrets.h"
 
-/********* Function declarations *********/
-uint32_t applyWithBrightness(uint8_t value, uint8_t brightness);
-void updateLED();
-
-/********* Const variables *********/
+/********* Hardware *********/
   // Pins
 const uint8_t PIN_RED = 25;
 const uint8_t PIN_GREEN = 26; 
@@ -16,15 +13,14 @@ const uint8_t PIN_BLUE = 27;
 const uint8_t PIN_BUTTON = 21;
 const uint8_t PIN_TEMP = 18;
 
-  // LEDC PWM channels for ESP32 Arduino Core 2.x
-const uint8_t PWM_CH_RED = 0;
-const uint8_t PWM_CH_GREEN = 1;
-const uint8_t PWM_CH_BLUE = 2;
-const uint32_t PWM_FREQ = 5000;
-const uint8_t PWM_RESOLUTION = 8;
+/********* Objects *********/
+LightController light(LightPins(PIN_RED, PIN_GREEN, PIN_BLUE));
+LedMqttService mqtt;
+OneWire oneWire(PIN_TEMP);
+DallasTemperature tempSensors(&oneWire);
 
-  // Other
-const uint32_t LED_CRIT_MAX_INTENSITY = 100;
+/********* Const variables *********/
+const uint8_t LED_CRIT_MAX_INTENSITY = 100;
 const uint32_t TEMP_MEASURE_INTERVAL = 5000;
 const uint32_t TEMP_CONVERSION_DELAY = 750;
 const uint32_t BTN_DEBOUNCE_DELAY = 50;
@@ -32,40 +28,21 @@ const float TEMP_CRIT = 31.f;
 const float TEMP_CRIT_REVERT = 29.f;
 
 /****** Variables *******/
-enum class ColorModes {
-  None,
-  Wave,
-  Pulse,
-  Candle
-};
-ColorModes currentMode = ColorModes::None;
-
-// RGB LEDs [0..255]
-uint8_t ledRed = 100;
-uint8_t ledGreen = 100;
-uint8_t ledBlue = 100;
-
-// LED's brightness [0..255]
-uint8_t brightness = 255;
-
-// MQTT server and connection
-LedMqttService mqtt;
-
-// state variables
-bool isOn = true;
+  // temperature
 bool isLedTempCrit = false;
 bool tempRequestPending = false;
 unsigned long lastTempRequest = 0;
 unsigned long lastTempCheckTime = 0;
-
-// Temperature variables
 float lastWrittenTemp = 0;
 
-// button variables
+  // button
 int lastButtonState = HIGH;
 unsigned long lastDebounceTime = 0;
 
-// mode variables 
+  // mqtt
+bool wasMqttConnected = false;
+
+// mode 
   // wave
 float waveSpeed = 60.0;    
   // pulse   
@@ -77,116 +54,36 @@ int flickerInterval = 100;
 int targetBrightness = 255;
 int currentBrightness = 255;
 
-OneWire oneWire(PIN_TEMP);
-DallasTemperature tempSensors(&oneWire);
-
-/********** LOGIC **********/
-uint32_t applyWithBrightness(uint8_t value, uint8_t brightness) {
-  return (uint32_t)(value * (brightness / 255.f));
-}
-void writeLedStatus() {
-  if (!mqtt.isConnected()) return;
-  String response = String(ledRed) + "," + String(ledGreen) + "," + String(ledBlue);
-  mqtt.sendData(response, mqtt.topicColorStatus, currentMode == ColorModes::None ? true : false);
-}
-
-void writeModeStatus() {
-  if (!mqtt.isConnected()) return;
-  String modeString;
-  switch (currentMode) {
-    case ColorModes::None :
-      modeString = "None";
-      break;
-    case ColorModes::Wave :
-      modeString = "Wave";
-      break;
-    case ColorModes::Pulse :
-      modeString = "Pulse";
-      break;
-    case ColorModes::Candle :
-      modeString = "Candle";
-      break;
-  }
-  mqtt.sendData(modeString, mqtt.topicModeStatus);
-}
-
-void handleBrightnessFromMqtt(int _brightness) {
-  brightness = _brightness;
-  updateLED();
-  mqtt.sendData((String)(brightness), mqtt.topicBrightnessStatus, true);
-}
-
-void handlePowerFromMqtt(bool power) {
-  if (!power && isOn) {
-    baseRed = ledRed;
-    baseGreen = ledGreen;
-    baseBlue = ledBlue;
-    ledRed = 0;
-    ledGreen = 0;
-    ledBlue = 0;
-    isOn = false;
-    mqtt.sendData("OFF", mqtt.topicPowerStatus, true);
-    updateLED();
-  } else if (power && !isOn) {
-    ledRed = baseRed;
-    ledGreen = baseGreen;
-    ledBlue = baseBlue;
-    mqtt.sendData("ON", mqtt.topicPowerStatus, true);
-    updateLED();
-    isOn = true;
-  }
-}
-
-// handle getting color from callback
-void handleColorFromMqtt(int r, int g, int b) {
-  if (!isOn) return;
-  ledRed = r;
-  ledGreen = g;
-  ledBlue = b;
-  if (currentMode != ColorModes::None) {
-    currentMode = ColorModes::None;
-    writeModeStatus();
-  }
-  updateLED();
-}
-
-// handle getting mode from callback
-void handleModeFromMqtt(String mode) {
-  if (!isOn) return;
-  if (mode == "Wave") {
-      currentMode = ColorModes::Wave;
-  } else if (mode == "Pulse") {
-      currentMode = ColorModes::Pulse;
-      baseRed = ledRed;
-      baseGreen = ledGreen;
-      baseBlue = ledBlue;
-  } else if (mode == "Candle") {
-      currentMode = ColorModes::Candle;
-  } else if (mode == "None") {
-      currentMode = ColorModes::None;
-  }
-  writeModeStatus();
+/****** MQTT handlers *******/
+void handleBrightnessFromMqtt(int brightness) { light.setBrightness(brightness); }
+void handlePowerFromMqtt(bool power) { light.setPower(power); }
+void handleColorFromMqtt(int r, int g, int b) { light.setColor(Rgb{r, g, b}); }
+void handleModeFromMqtt(String mode) { 
+  LightMode m;
+  if (modeFromString(mode.c_str(), m)) light.setMode(m);
 }
 
 #pragma region led modes
 void waveMode() {
   float angle = fmod((millis() * waveSpeed) / 1000.0, 360.0);
   
-  ledRed = (sin(angle * PI / 180.0) + 1.0) * 127.5;
-  ledGreen = (sin((angle + 120) * PI / 180.0) + 1.0) * 127.5;
-  ledBlue = (sin((angle + 240) * PI / 180.0) + 1.0) * 127.5;
-  updateLED();
+  light.setEffectColor(Rgb{
+      (uint8_t)((sin(angle * PI / 180.0) + 1.0) * 127.5),
+      (uint8_t)((sin((angle + 120) * PI / 180.0) + 1.0) * 127.5),
+      (uint8_t)((sin((angle + 240) * PI / 180.0) + 1.0) * 127.5)
+    });
 }
 
 void pulseMode() {
   float angle = (millis() * pulseSpeed) / 1000.0;
-  float brightnessFactor = (sin(angle) + 1.0) / 2.0; 
-  
-  ledRed = baseRed * brightnessFactor;
-  ledGreen = baseGreen * brightnessFactor;
-  ledBlue = baseBlue * brightnessFactor;
+  float f = (sin(angle) + 1.0) / 2.0; 
+  const Rgb& base = light.state().color;
 
-  updateLED();
+  light.setEffectColor(Rgb{
+    (uint8_t)(base.r * f),
+    (uint8_t)(base.g * f),
+    (uint8_t)(base.b * f)
+  });
 }
 
 void candleMode() {
@@ -201,66 +98,44 @@ void candleMode() {
   currentBrightness = constrain(currentBrightness, 0, 255);
   int greenFlicker = random(-20, 20);
 
-  ledRed   = currentBrightness;
-  ledGreen = constrain(((currentBrightness * 140) / 255) + greenFlicker, 0, 255);
-  ledBlue  = (currentBrightness * 10) / 255; 
-  updateLED();
+  light.setEffectColor(Rgb{
+    (uint8_t)(currentBrightness),
+    (uint8_t)(constrain(((currentBrightness * 140) / 255) + greenFlicker, 0, 255)),
+    (uint8_t)((currentBrightness * 10) / 255)
+  });
 }
 #pragma endregion
 
 void handleModes() {
-
-  if (currentMode == ColorModes::None) return;
+  LightMode mode = light.state().mode;
+  if (mode == LightMode::None) return;
 
   if (isLedTempCrit) {
-    currentMode = ColorModes::None;
+    light.setMode(LightMode::None);
+    light.setColor(Rgb{LED_CRIT_MAX_INTENSITY, 0, 0});
     mqtt.sendData("Effect turned off due to critical temperature!", mqtt.topicModeMessage);
-    // Warning color
-    ledRed = LED_CRIT_MAX_INTENSITY;
-    ledGreen = 0;
-    ledBlue = 0;
-    updateLED();
     return;
   }
 
-  switch (currentMode) {
-    case ColorModes::None :
-      return;
-    case ColorModes::Wave :
-      waveMode();
-      break;
-    case ColorModes::Pulse :
-      pulseMode();
-      break;
-    case ColorModes::Candle :
-      candleMode();
-      break;
-  }
-}
-
-void updateLED() {
-  if (!isLedTempCrit || 
-     (ledRed <= LED_CRIT_MAX_INTENSITY && ledGreen <= LED_CRIT_MAX_INTENSITY && ledBlue <= LED_CRIT_MAX_INTENSITY)) {
-      ledcWrite(PWM_CH_RED, applyWithBrightness(ledRed, brightness));
-      ledcWrite(PWM_CH_GREEN, applyWithBrightness(ledGreen, brightness));
-      ledcWrite(PWM_CH_BLUE, applyWithBrightness(ledBlue, brightness));
-      writeLedStatus();
-  } else {
-      mqtt.sendData("Temperature is too high", mqtt.topicColorMessage);
+  switch (mode) {
+    case LightMode::Wave : waveMode(); break;
+    case LightMode::Pulse : pulseMode(); break;
+    case LightMode::Candle : candleMode(); break;
+    default: break;
   }
 }
 
 void updateTemp() {
-  unsigned long currentMillis = millis();
+  unsigned long now = millis();
 
-  if (!tempRequestPending && (currentMillis - lastTempCheckTime >= TEMP_MEASURE_INTERVAL)) {
+  if (!tempRequestPending && (now - lastTempCheckTime >= TEMP_MEASURE_INTERVAL)) {
     tempSensors.requestTemperatures();
     tempRequestPending = true;
-    lastTempRequest = currentMillis;
-    lastTempCheckTime = currentMillis;
+    lastTempRequest = now;
+    lastTempCheckTime = now;
   }
 
-  if (tempRequestPending && (currentMillis - lastTempRequest >= TEMP_CONVERSION_DELAY)) {
+  if (tempRequestPending && (now - lastTempRequest >= TEMP_CONVERSION_DELAY)) {
     float tempC = tempSensors.getTempCByIndex(0);
     tempRequestPending = false;
 
@@ -277,17 +152,10 @@ void updateTemp() {
 
     if (tempC > TEMP_CRIT && !isLedTempCrit) {
       isLedTempCrit = true;
-      currentMode = ColorModes::None;
-      
-      String response = "ALARM TEMP: Temperature is over " + String(TEMP_CRIT) + "C";
-      mqtt.sendData(response, mqtt.topicTempMessage);
-
-      ledRed = (ledRed > LED_CRIT_MAX_INTENSITY) ? LED_CRIT_MAX_INTENSITY : ledRed;
-      ledGreen = (ledGreen > LED_CRIT_MAX_INTENSITY) ? LED_CRIT_MAX_INTENSITY : ledGreen;
-      ledBlue = (ledBlue > LED_CRIT_MAX_INTENSITY) ? LED_CRIT_MAX_INTENSITY : ledBlue;
-      
-      updateLED();
-    } else if (isLedTempCrit && tempC < TEMP_CRIT_REVERT) {
+      light.setMode(LightMode::None);
+      mqtt.sendData("TEMP: Temperature is over" + String(TEMP_CRIT) + "C", mqtt.topicTempMessage);
+    }
+    else if (isLedTempCrit && tempC < TEMP_CRIT_REVERT) {
       isLedTempCrit = false;
       mqtt.sendData("Temperature cool down. All functions are avaiable", mqtt.topicTempMessage);
     }
@@ -306,61 +174,59 @@ void updateButton() {
     if (reading != stableState) {
       stableState = reading;
       if (stableState == LOW) {
-        
-        currentMode = ColorModes::None;
-        
-        ledRed = constrain(esp_random() % 256, 0, 255);
-        ledGreen = constrain(esp_random() % 256, 0, 255);
-        ledBlue = constrain(esp_random() % 256, 0, 255);
-        
-        if (isLedTempCrit) {
-            if(ledRed > LED_CRIT_MAX_INTENSITY) ledRed = LED_CRIT_MAX_INTENSITY;
-            if(ledGreen > LED_CRIT_MAX_INTENSITY) ledGreen = LED_CRIT_MAX_INTENSITY;
-            if(ledBlue > LED_CRIT_MAX_INTENSITY) ledBlue = LED_CRIT_MAX_INTENSITY;
-        }
-
-        updateLED();
-        writeLedStatus();
+        light.setColor(Rgb{
+          (uint8_t)(constrain(esp_random() % 256, 0, 255)),
+          (uint8_t)(constrain(esp_random() % 256, 0, 255)),
+          (uint8_t)(constrain(esp_random() % 256, 0, 255))
+        });
       }
     }
   }
   lastButtonState = reading;
 }
 
+void publishChanges() {
+  uint8_t ch = light.takeChanges();
+  if (!ch) return;
+  const LightState& s = light.state();
+
+  if (ch && LightController::CH_COLOR) {
+    mqtt.sendData((String)(s.color.r) + "," + (String)(s.color.g) + "," + (String)(s.color.b), mqtt.topicColorStatus, true);
+  }
+  if (ch & LightController::CH_BRIGHTNESS) mqtt.sendData(String(s.brightness), mqtt.topicBrightnessStatus, true);
+  if (ch & LightController::CH_POWER)      mqtt.sendData(s.power ? "ON" : "OFF", mqtt.topicPowerStatus, true);
+  if (ch & LightController::CH_MODE)       mqtt.sendData(modeToString(s.mode), mqtt.topicModeStatus);
+}
+
 void setup() {
   Serial.begin(115200);
-  
-  ledcSetup(PWM_CH_RED, PWM_FREQ, PWM_RESOLUTION);
-  ledcSetup(PWM_CH_GREEN, PWM_FREQ, PWM_RESOLUTION);
-  ledcSetup(PWM_CH_BLUE, PWM_FREQ, PWM_RESOLUTION);
-
-  ledcAttachPin(PIN_RED, PWM_CH_RED);
-  ledcAttachPin(PIN_GREEN, PWM_CH_GREEN);
-  ledcAttachPin(PIN_BLUE, PWM_CH_BLUE);
-  
   pinMode(PIN_BUTTON, INPUT_PULLUP);
-  
   tempSensors.begin();
   tempSensors.setWaitForConversion(false);
+
+  light.begin();
 
   mqtt.onPowerChange(handlePowerFromMqtt);
   mqtt.onColorChange(handleColorFromMqtt);
   mqtt.onBrightnessChange(handleBrightnessFromMqtt);
   mqtt.onModeChange(handleModeFromMqtt);
   mqtt.init(WIFI_SSID, WIFI_PASSWORD);
-  updateLED();
-  writeModeStatus();
-  mqtt.sendData(String(brightness), mqtt.topicBrightnessStatus, true);
-  mqtt.sendData(isOn ? "ON" : "OFF", mqtt.topicPowerStatus, true);
 }
 
 void loop() {
-
   mqtt.update();
-  if (isOn) {
+
+  bool connected = mqtt.isConnected();
+  if (connected && !wasMqttConnected) light.markAllChanged();
+  wasMqttConnected = connected;
+
+  if (light.state().power) {
     updateTemp();    
     updateButton(); 
     handleModes(); 
   }
+
+  light.update();
+  publishChanges();
   delay(10);
 }
