@@ -19,23 +19,4 @@ struct LightState {
     LightMode mode = LightMode::None;
 };
 
-inline const char* modeToString(LightMode m) {
-    switch (m)
-    {
-    case LightMode::Wave:   return "Wave";
-    case LightMode::Candle: return "Candle";
-    case LightMode::Pulse:  return "Pulse";
-    default:                return "None";
-    }
-}
-
-inline bool modeFromString(const char* s, LightMode& out) {
-    if (strcmp(s, "None") == 0)     out = LightMode::None;
-    else if (strcmp(s, "Wave") == 0) out = LightMode::Wave;
-    else if (strcmp(s, "Candle") == 0) out = LightMode::Candle;
-    else if (strcmp(s, "Pulse") == 0) out = LightMode::Pulse;
-    else return false;
-    return true;
-}
-
 #endif
