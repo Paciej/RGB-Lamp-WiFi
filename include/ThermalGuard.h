@@ -11,7 +11,7 @@ struct ThermalConfig {
     uint32_t measureInterval;
     uint8_t outputLimit;
 
-    ThermalConfig(float crit = 31.f, float revert = 29.f, uint32_t interval = 5000, uint8_t limit = 100)
+    ThermalConfig(float crit = 31.f, float revert = 27.f, uint32_t interval = 5000, uint8_t limit = 100)
         : critTemp(crit), revertTemp(revert), measureInterval(interval), outputLimit(limit) {}
 };
 
