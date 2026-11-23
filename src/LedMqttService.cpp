@@ -86,7 +86,7 @@ bool LedMqttService::resolveMqttBroker() {
         }
     }
     this->mqttAddress = brokerIp;
-    Serial.printf("MQTT broker IP: %s\n", mqttAddress.toString());
+    Serial.printf("MQTT broker IP: %s\n", mqttAddress.toString().c_str());
     return true;
 }
 
@@ -115,12 +115,12 @@ void LedMqttService::init(const char* ssid, const char* password) {
         Serial.print(".");
     }
 
-    Serial.printf("\nWiFi Connected\n IP address: %s\n", (String)WiFi.localIP().toString());
+    Serial.printf("\nWiFi Connected\n IP address: %s\n", (String)WiFi.localIP().toString().c_str());
 
     // Setup MQTT
     //resolveMqttBroker();    // find broker IP and set server
     this->mqttAddress.fromString(MQTT_BROKER);
-    Serial.printf("Broker ip address: %s\n", this->mqttAddress.toString());
+    Serial.printf("Broker ip address: %s\n", this->mqttAddress.toString().c_str());
     mqttClient->setServer(this->mqttAddress, MQTT_BROKER_PORT);
     mqttClient->setBufferSize(512);
     mqttClient->setKeepAlive(20);
@@ -138,8 +138,8 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
     String message = "";
     for (int i = 0; i < length; i++) {
         message += (char)payload[i];
-        Serial.printf("Received: %s\n", (char)payload[i]);
     }
+    Serial.printf("Received: %s\n", message.c_str());
 
     if (strcmp(name, topicColor) == 0) {
         char comma = (message.indexOf(',') == -1) ? '.' : ',';
