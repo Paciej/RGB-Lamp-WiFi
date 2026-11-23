@@ -1,8 +1,8 @@
-#include <OneWire.h>
-#include <DallasTemperature.h>
+#include <Arduino.h>
 #include <esp_system.h>
 #include "LightController.h"
 #include "ThermalGuard.h"
+#include "Effects.h"
 #include "LedMqttService.h"
 #include "Secrets.h"
 
