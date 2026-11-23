@@ -46,6 +46,7 @@ public:
     void setMode(LightMode mode);
 
     void setEffectColor(Rgb color);
+    void setOutputLimit(uint8_t limit);
 
     uint8_t takeChanges();
     const LightState& state() const { return _state; }

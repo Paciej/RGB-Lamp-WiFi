@@ -78,6 +78,12 @@ void LightController::setEffectColor(Rgb color) {
     outputDirty = true;
 }
 
+void LightController::setOutputLimit(uint8_t limit) {
+    if (outputLimit == limit || limit > 255 || limit < 0) return;
+    outputLimit = limit;
+    outputDirty = true;
+}
+
 uint8_t LightController::takeChanges() {
     uint8_t c = changes;
     changes = 0;
