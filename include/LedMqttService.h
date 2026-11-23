@@ -9,7 +9,7 @@ typedef void (*ColorChangeCallback)(int, int, int);
 typedef void (*BrightnessChangeCallback)(int);
 typedef void (*ModeChangeCallback)(String);
 
-static constexpr size_t MAX_SIZE = 48;
+static constexpr size_t MAX_SIZE = 64;
 constexpr const char* infoJson = 
 "{\"schema\":1,"
 "\"fw\":\"0.2.0\","
