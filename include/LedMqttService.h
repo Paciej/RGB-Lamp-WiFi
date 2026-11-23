@@ -29,6 +29,7 @@ private:
     // MQTT clients
     WiFiClient wifiClient;
     PubSubClient* mqttClient;
+    IPAddress mqttAddress;
 
     char device_id[13];
     char pf_cmd[MAX_SIZE];

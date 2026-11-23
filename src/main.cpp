@@ -87,7 +87,7 @@ uint32_t applyWithBrightness(uint8_t value, uint8_t brightness) {
 void writeLedStatus() {
   if (!mqtt.isConnected()) return;
   String response = String(ledRed) + "," + String(ledGreen) + "," + String(ledBlue);
-  mqtt.sendData(response, mqtt.topicColorStatus, true);
+  mqtt.sendData(response, mqtt.topicColorStatus, currentMode == ColorModes::None ? true : false);
 }
 
 void writeModeStatus() {
@@ -265,9 +265,9 @@ void updateTemp() {
     tempRequestPending = false;
 
     if (tempC == -127.00) {
-      return; 
       Serial.println("ERROR127: temperature scanner does not work properly");
       mqtt.sendData(String("Temperature sensor does not work properly"), mqtt.topicTempMessage);
+      return; 
     }
 
     if (tempC - lastWrittenTemp != 0) {
@@ -281,7 +281,6 @@ void updateTemp() {
       
       String response = "ALARM TEMP: Temperature is over " + String(TEMP_CRIT) + "C";
       mqtt.sendData(response, mqtt.topicTempMessage);
-      Serial.printf("%s", response);
 
       ledRed = (ledRed > LED_CRIT_MAX_INTENSITY) ? LED_CRIT_MAX_INTENSITY : ledRed;
       ledGreen = (ledGreen > LED_CRIT_MAX_INTENSITY) ? LED_CRIT_MAX_INTENSITY : ledGreen;
@@ -352,6 +351,7 @@ void setup() {
   updateLED();
   writeModeStatus();
   mqtt.sendData(String(brightness), mqtt.topicBrightnessStatus, true);
+  mqtt.sendData(isOn ? "ON" : "OFF", mqtt.topicPowerStatus, true);
 }
 
 void loop() {

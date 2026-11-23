@@ -41,14 +41,19 @@ void LedMqttService::reconnect() {
     snprintf(filter, sizeof(filter), "%s#", this->pf_cmd);
     char tConnect[statusLen + strlen(topicConnection) + 1];
     snprintf(tConnect, sizeof(tConnect), "%s%s", pf_status, topicConnection);
-    Serial.printf("topics to subscribe: %s\n topic connection: %s\n", filter, tConnect);
 
     while (!mqttClient->connected()) {
+        if (WiFi.status() != WL_CONNECTED) {
+            Serial.println("ESP32 is not connected to WiFi. Reconnecting...");
+            WiFi.reconnect();
+        } else {
+            Serial.printf("Wifi signal: %d\n", WiFi.RSSI());
+        }
         Serial.println("Attempting MQTT connection...");
-        if (mqttClient->connect(device_id, MQTT_USERNAME, MQTT_PASSWORD, tConnect, 1, true, "Offline")) {
+        if (mqttClient->connect(device_id, MQTT_USERNAME, MQTT_PASSWORD, tConnect, 1, true, "offline")) {
             mqttClient->subscribe(filter, 1);
             sendInfo();
-            sendData("Online", topicConnection, true);
+            sendData("online", topicConnection, true);
             Serial.println("Successfully connected to broker");
         } else {
             Serial.printf("Failed, rc=%d\n", mqttClient->state());
@@ -63,8 +68,6 @@ bool LedMqttService::resolveMqttBroker() {
 
     if (!MDNS.begin(this->device_id)) {
         Serial.println("MDNS ERROR: Couldn't initialize mDNS");
-        Serial.printf("MQTT broker IP: %s\n", MQTT_BROKER);
-        mqttClient->setServer(MQTT_BROKER, MQTT_BROKER_PORT);
         return false;
     } 
 
@@ -75,15 +78,22 @@ bool LedMqttService::resolveMqttBroker() {
         if (brokerIp != IPAddress(0, 0, 0, 0)) { break; }
     }
 
-    (brokerIp != IPAddress(0, 0, 0, 0)) ? mqttClient->setServer(brokerIp, MQTT_BROKER_PORT) : mqttClient->setServer(MQTT_BROKER, MQTT_BROKER_PORT);
-    Serial.printf("MQTT broker IP: %s", brokerIp);
+    if (brokerIp == IPAddress(0, 0, 0, 0)) {
+        Serial.println("Couldn't find address via MDNS. Setting hardocded IP address");
+        if (!brokerIp.fromString(MQTT_BROKER)) {
+            Serial.println("Invalid given IP Address");
+            return false;
+        }
+    }
+    this->mqttAddress = brokerIp;
+    Serial.printf("MQTT broker IP: %s\n", mqttAddress.toString());
     return true;
 }
 
 //********* Public Functions ***********/
 // ----------------------------------------
 void LedMqttService::init(const char* ssid, const char* password) {
-    Serial.begin(115120);
+    Serial.begin(115200);
 
     // Read mac and create prefixes
     uint8_t mac[6];
@@ -94,6 +104,9 @@ void LedMqttService::init(const char* ssid, const char* password) {
     statusLen = snprintf(this->pf_status, 48, "candelum/%s/status/", device_id);
 
     Serial.printf("\nConnecting to %s", ssid);
+    WiFi.mode(WIFI_STA);
+    WiFi.persistent(false);
+    WiFi.setSleep(false);
     WiFi.begin(ssid, password);
     WiFi.setAutoReconnect(true);
 
@@ -102,13 +115,15 @@ void LedMqttService::init(const char* ssid, const char* password) {
         Serial.print(".");
     }
 
-    Serial.printf("\nWiFi Connected\n IP address: %s\n", (String)WiFi.localIP());
+    Serial.printf("\nWiFi Connected\n IP address: %s\n", (String)WiFi.localIP().toString());
 
     // Setup MQTT
     //resolveMqttBroker();    // find broker IP and set server
-    mqttClient->setServer(MQTT_BROKER, MQTT_BROKER_PORT);
+    this->mqttAddress.fromString(MQTT_BROKER);
+    Serial.printf("Broker ip address: %s\n", this->mqttAddress.toString());
+    mqttClient->setServer(this->mqttAddress, MQTT_BROKER_PORT);
     mqttClient->setBufferSize(512);
-    mqttClient->setKeepAlive(60);
+    mqttClient->setKeepAlive(20);
     mqttClient->setCallback([this](char* topic, byte* payload, unsigned int length){callback(topic, payload, length);});
     reconnect();
 }
@@ -123,9 +138,8 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
     String message = "";
     for (int i = 0; i < length; i++) {
         message += (char)payload[i];
-        Serial.print((char)payload[i]);
+        Serial.printf("Received: %s\n", (char)payload[i]);
     }
-    Serial.println();
 
     if (strcmp(name, topicColor) == 0) {
         char comma = (message.indexOf(',') == -1) ? '.' : ',';
@@ -166,6 +180,10 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
 }
 
 void LedMqttService::update() {
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.print("ESP32 is disconnected from wifi. Reconnecting...\n");
+        WiFi.reconnect();
+    }
     if (!mqttClient->connected()) {
         resolveMqttBroker();
         reconnect();
@@ -177,7 +195,6 @@ void LedMqttService::update() {
 void LedMqttService::sendData(String data, const char* topic, bool retained) {
     char t[MAX_SIZE];
     snprintf(t, sizeof(t), "%s%s", pf_status, topic);
-    Serial.printf("send topic: %s\t data: %s\t retain: %d\n", t, data, retained);
     mqttClient->publish(t, data.c_str(), retained);
 }
 
