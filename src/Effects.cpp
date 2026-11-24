@@ -42,10 +42,10 @@ static Rgb candleFx(const EffectParams& p, uint32_t t, EffectScratch& s) {
 }
 
 static const EffectDef EFFECTS[] = {
-    {"None", nullptr,   {Rgb(), 1000, 0}, false},
-    {"Wave", waveFx,    {Rgb(), 6000, 0}, false},
-    {"Pulse", pulseFx,  {Rgb(), 2000, 0}, true},
-    {"Candle", candleFx,{Rgb(), 1000, 0}, false}
+    {"None",    nullptr, {Rgb(), 1000, 0}, false,    0,      0},
+    {"Wave",     waveFx, {Rgb(), 6000, 0}, false, 2000,  60000},
+    {"Pulse",   pulseFx, {Rgb(), 2000, 0},  true,  500,  10000},
+    {"Candle", candleFx, {Rgb(), 1000, 0}, false,    0,      0}
 };
 static_assert(sizeof(EFFECTS) / sizeof(EFFECTS[0]) == 4, "EFFECTS must match LightMode enum");
 
@@ -70,6 +70,20 @@ void EffectEngine::arm(LightMode m, const EffectParams& p) {
     this->active = m;
     this->params = p;
     this->scratch = EffectScratch{0, 100, 255, 255};
+}
+
+bool EffectEngine::start(const ModeCommand& cmd) {
+    const EffectDef& d = defOf(cmd.mode);
+
+    EffectParams p = d.defaults;
+    p.startAt = effectNowMs();
+
+    if (d.usesColor) p.color = cmd.hasColor ? cmd.color : light.state().color;
+    if (cmd.hasPeriod && d.maxPeriod > 0) {
+        p.periodMs = constrain(cmd.periodMs, d.minPeriod, d.maxPeriod);
+    }
+
+    return start(cmd.mode, p);
 }
 
 bool EffectEngine::start(LightMode mode) {

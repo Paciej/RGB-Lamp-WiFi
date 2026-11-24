@@ -2,6 +2,7 @@
 #define EFFECTS_H
 
 #include "LightController.h"
+#include "ModeCommand.h"
 
 struct EffectParams {
     Rgb color;
@@ -23,6 +24,8 @@ struct EffectDef {
     EffectFn fn;
     EffectParams defaults;
     bool usesColor;
+    uint32_t minPeriod;
+    uint32_t maxPeriod;
 };
 
 const char* modeToString(LightMode mode);
@@ -41,6 +44,7 @@ void arm(LightMode m, const EffectParams& p);
 public:
 explicit EffectEngine(LightController& light) : light(light) {}
 
+bool start(const ModeCommand& cmd);
 bool start(LightMode mode);
 bool start(LightMode mode, const EffectParams& params);
 void update();
