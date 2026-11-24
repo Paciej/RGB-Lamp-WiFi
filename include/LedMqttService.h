@@ -5,10 +5,11 @@
 #include <PubSubClient.h>
 
 typedef void (*PowerChangeCallback)(bool);
-typedef void (*ColorChangeCallback)(int, int, int);
-typedef void (*BrightnessChangeCallback)(int);
-typedef void (*ModeChangeCallback)(String);
+typedef void (*ColorChangeCallback)(uint8_t, uint8_t, uint8_t);
+typedef void (*BrightnessChangeCallback)(uint8_t);
+typedef void (*ModeChangeCallback)(const char*);
 
+static constexpr size_t P_MAX_SIZE = 16;
 static constexpr size_t MAX_SIZE = 64;
 constexpr const char* infoJson = 
 "{\"schema\":1,"
@@ -69,7 +70,7 @@ public:
 
     void init(const char* ssid, const char* password);
     void update();
-    void sendData(String data, const char* topic, bool retained = false);
+    void sendData(const char* data, const char* topic, bool retained = false);
     bool isConnected();
     void onPowerChange(PowerChangeCallback callback);
     void onColorChange(ColorChangeCallback callback);
