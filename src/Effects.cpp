@@ -86,13 +86,6 @@ bool EffectEngine::start(const ModeCommand& cmd) {
     return start(cmd.mode, p);
 }
 
-bool EffectEngine::start(LightMode mode) {
-    EffectParams p = defOf(mode).defaults;
-    p.startAt = effectNowMs();
-    if (defOf(mode).usesColor) p.color = light.state().color;
-    return start(mode, p);
-}
-
 bool EffectEngine::start(LightMode mode, const EffectParams& params) {
     light.setMode(mode);
     if (light.state().mode != mode) return false;

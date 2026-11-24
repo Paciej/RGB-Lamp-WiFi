@@ -33,14 +33,12 @@ bool wasMqttConnected = false;
 void handleBrightnessFromMqtt(uint8_t brightness) { light.setBrightness(brightness); }
 void handlePowerFromMqtt(bool power) { light.setPower(power); }
 void handleColorFromMqtt(uint8_t r, uint8_t g, uint8_t b) { light.setColor(Rgb{r, g, b}); }
-void handleModeFromMqtt(const char* mode) { 
-  LightMode m;
-  if (!modeFromString(mode, m)) return;
-  if (guard.isCritial() && m != LightMode::None) {
+void handleModeFromMqtt(const ModeCommand& cmd) { 
+  if (guard.isCritial() && cmd.mode != LightMode::None) {
     mqtt.sendData("Effect blocked due to critical temperature!", mqtt.topicModeMessage);
     return;
   }
-  effects.start(m);
+  effects.start(cmd);
 }
 
 void updateButton() {

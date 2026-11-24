@@ -45,7 +45,6 @@ public:
 explicit EffectEngine(LightController& light) : light(light) {}
 
 bool start(const ModeCommand& cmd);
-bool start(LightMode mode);
 bool start(LightMode mode, const EffectParams& params);
 void update();
 };

@@ -25,11 +25,12 @@ bool parseModeCommand(const char* payload, ModeCommand& out) {
     JsonArray c = doc["color"].as<JsonArray>();
     if (!c.isNull()) {
         if (c.size() != 3) return false;
-            out.hasColor = true;
-            out.color = Rgb(constrain(c[0].as<int>(), 0, 255),
-                            constrain(c[1].as<int>(), 0, 255),
-                            constrain(c[2].as<int>(), 0, 255));
-        }
+
+        out.hasColor = true;
+        out.color = Rgb(constrain(c[0].as<int>(), 0, 255),
+                        constrain(c[1].as<int>(), 0, 255),
+                        constrain(c[2].as<int>(), 0, 255));
+    }
 
     return true;
 }

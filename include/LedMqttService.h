@@ -3,13 +3,13 @@
 
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include "ModeCommand.h"
 
 typedef void (*PowerChangeCallback)(bool);
 typedef void (*ColorChangeCallback)(uint8_t, uint8_t, uint8_t);
 typedef void (*BrightnessChangeCallback)(uint8_t);
-typedef void (*ModeChangeCallback)(const char*);
+typedef void (*ModeChangeCallback)(const ModeCommand&);
 
-static constexpr size_t P_MAX_SIZE = 16;
 static constexpr size_t MAX_SIZE = 64;
 constexpr const char* infoJson = 
 "{\"schema\":1,"

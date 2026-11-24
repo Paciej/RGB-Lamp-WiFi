@@ -139,7 +139,7 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
         return;
     }
 
-    char buf[P_MAX_SIZE + 1];
+    char buf[MAX_SIZE + 1];
     memcpy(buf, payload, length);
     buf[length] = '\0';
     Serial.printf("Received: %s\n", buf);
@@ -172,10 +172,9 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
         brightnessCallback(constrain(atoi(buf), 0, 255));
     }
     else if (strcmp(name, topicMode) == 0) {
-        if (strcmp(buf, "Wave") == 0 || strcmp(buf, "Pulse") == 0|| strcmp(buf, "Candle") == 0 || strcmp(buf, "None") == 0) {
-            if (modeCallback) {
-                modeCallback(buf);
-            }
+        ModeCommand cmd;
+        if (parseModeCommand(buf, cmd) && modeCallback) {
+            modeCallback(cmd);
         }
     }
     else if (strcmp(name, topicPower) == 0) {
