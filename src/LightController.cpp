@@ -58,7 +58,6 @@ void LightController::setBrightness(uint8_t brightness) {
 }
 
 void LightController::setPower(bool on) {
-    if (!_state.power) return;
     _state.power = on;
     changes |= CH_POWER;
     outputDirty = true;
