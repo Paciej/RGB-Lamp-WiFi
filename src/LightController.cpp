@@ -66,6 +66,7 @@ void LightController::setPower(bool on) {
 void LightController::setMode(LightMode mode) {
     if (!_state.power) return;
     _state.mode = mode;
+    if (_state.mode == LightMode::None) effectActive = false;
     changes |= CH_MODE;
     outputDirty = true;
 }
