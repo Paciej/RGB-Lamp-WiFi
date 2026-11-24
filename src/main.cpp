@@ -30,12 +30,12 @@ unsigned long lastDebounceTime = 0;
 bool wasMqttConnected = false;
 
 /****** MQTT handlers *******/
-void handleBrightnessFromMqtt(int brightness) { light.setBrightness(brightness); }
+void handleBrightnessFromMqtt(uint8_t brightness) { light.setBrightness(brightness); }
 void handlePowerFromMqtt(bool power) { light.setPower(power); }
-void handleColorFromMqtt(int r, int g, int b) { light.setColor(Rgb{r, g, b}); }
-void handleModeFromMqtt(String mode) { 
+void handleColorFromMqtt(uint8_t r, uint8_t g, uint8_t b) { light.setColor(Rgb{r, g, b}); }
+void handleModeFromMqtt(const char* mode) { 
   LightMode m;
-  if (!modeFromString(mode.c_str(), m)) return;
+  if (!modeFromString(mode, m)) return;
   if (guard.isCritial() && m != LightMode::None) {
     mqtt.sendData("Effect blocked due to critical temperature!", mqtt.topicModeMessage);
     return;
@@ -72,9 +72,11 @@ void publishChanges() {
   const LightState& s = light.state();
 
   if (ch && LightController::CH_COLOR) {
-    mqtt.sendData((String)(s.color.r) + "," + (String)(s.color.g) + "," + (String)(s.color.b), mqtt.topicColorStatus, true);
+    char msg[16];
+    snprintf(msg, sizeof(msg), "%u,%u,%u", s.color.r, s.color.g, s.color.b);
+    mqtt.sendData(msg, mqtt.topicColorStatus, true);
   }
-  if (ch & LightController::CH_BRIGHTNESS) mqtt.sendData(String(s.brightness), mqtt.topicBrightnessStatus, true);
+  if (ch & LightController::CH_BRIGHTNESS) mqtt.sendData(String(s.brightness).c_str(), mqtt.topicBrightnessStatus, true);
   if (ch & LightController::CH_POWER)      mqtt.sendData(s.power ? "ON" : "OFF", mqtt.topicPowerStatus, true);
   if (ch & LightController::CH_MODE)       mqtt.sendData(modeToString(s.mode), mqtt.topicModeStatus);
 }
@@ -84,10 +86,12 @@ void publishThermal() {
   if (!ev || !mqtt.isConnected()) return;
 
   if (ev & ThermalGuard::EV_TEMP_CHANGED) {
-    mqtt.sendData(String(guard.temperature()) , mqtt.topicTemp);
+    mqtt.sendData(String(guard.temperature()).c_str() , mqtt.topicTemp);
   }
   if (ev & ThermalGuard::EV_ALARM) {
-    mqtt.sendData("ALARM TEMP: Temperature is over " + String(guard.critTemp()) + "C" , mqtt.topicTempMessage);
+    char msg[64];
+    snprintf(msg, sizeof(msg), "%s %f%c", "ALARM TEMP: Temperature is over ", guard.critTemp(), 'C');
+    mqtt.sendData(msg, mqtt.topicTempMessage);
   }
   if (ev & ThermalGuard::EV_RECOVERED) {
     mqtt.sendData("Temperature cooled down. All functions are available" , mqtt.topicTempMessage);

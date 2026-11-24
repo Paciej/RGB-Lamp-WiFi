@@ -129,51 +129,59 @@ void LedMqttService::init(const char* ssid, const char* password) {
 }
 
 void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
+    if (length > MAX_SIZE) {
+        Serial.printf("Payload too long: %u\n", length);
+    }
+
     const char* name = commandOf(topic);
     if (!name) {
         Serial.print("\nThis topic has wrong prefix - light won't process it");
         return;
     }
 
-    String message = "";
-    for (int i = 0; i < length; i++) {
-        message += (char)payload[i];
-    }
-    Serial.printf("Received: %s\n", message.c_str());
+    char buf[P_MAX_SIZE + 1];
+    memcpy(buf, payload, length);
+    buf[length] = '\0';
+    Serial.printf("Received: %s\n", buf);
 
     if (strcmp(name, topicColor) == 0) {
-        char comma = (message.indexOf(',') == -1) ? '.' : ',';
-        int firstComma = message.indexOf(comma);
-        int secondComma = message.indexOf(comma, firstComma + 1);
-        
-        if (firstComma > 0 && secondComma > firstComma) {
-            String redStr = message.substring(0, firstComma);
-            String greenStr = message.substring(firstComma + 1, secondComma);
-            String blueStr = message.substring(secondComma + 1);
-            
-            int r = constrain(redStr.toInt(), 0, 255);
-            int g = constrain(greenStr.toInt(), 0, 255);
-            int b = constrain(blueStr.toInt(), 0, 255);
+        char* p = buf;
+        char *end;
+        long v[3];
+        bool ok = true;
 
-            if (colorCallback) {
-                colorCallback(r, g, b);
+        for (int i = 0; i < 3 && ok; i++) {
+            v[i] = strtol(p, &end, 10);
+            if (end == p) { ok = false; break; }
+            if (i < 2) {
+                if (*end != ',') { ok = false; break; } 
+                p = end + 1;
             }
         }
+
+        if (ok && colorCallback) {
+            colorCallback(
+                (uint8_t)constrain(v[0], 0, 255),
+                (uint8_t)constrain(v[1], 0, 255),
+                (uint8_t)constrain(v[2], 0, 255)
+            );
+        }
+
     }
     else if (strcmp(name, topicBrightness) == 0) {
-        brightnessCallback(constrain(message.toInt(), 0, 255));
+        brightnessCallback(constrain(atoi(buf), 0, 255));
     }
     else if (strcmp(name, topicMode) == 0) {
-        if (message == "Wave" || message == "Pulse" || message == "Candle" || message == "None") {
+        if (strcmp(buf, "Wave") == 0 || strcmp(buf, "Pulse") == 0|| strcmp(buf, "Candle") == 0 || strcmp(buf, "None") == 0) {
             if (modeCallback) {
-                modeCallback(message);
+                modeCallback(buf);
             }
         }
     }
     else if (strcmp(name, topicPower) == 0) {
-        if (message == "ON" || message == "1") {
+        if (strcmp(buf, "ON") == 0) {
             powerCallback(true);
-        } else if (message == "OFF" || message == "0") {
+        } else if (strcmp(buf, "OFF") == 0) {
             powerCallback(false);
         }
     }
@@ -192,10 +200,10 @@ void LedMqttService::update() {
     mqttClient->loop();
 }
 
-void LedMqttService::sendData(String data, const char* topic, bool retained) {
+void LedMqttService::sendData(const char* data, const char* topic, bool retained) {
     char t[MAX_SIZE];
     snprintf(t, sizeof(t), "%s%s", pf_status, topic);
-    mqttClient->publish(t, data.c_str(), retained);
+    mqttClient->publish(t, data, retained);
 }
 
 bool LedMqttService::isConnected() {
