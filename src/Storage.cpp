@@ -61,7 +61,7 @@ bool Storage::stateDueSave() const {
     return dirty && (millis() - dirtyAt >= SAVE_DELAY_MS);
 }
 
-bool Storage::saveState(const LightState& s, const EffectParams& p) {
+void Storage::saveState(const LightState& s, const EffectParams& p) {
     Persisted ps;
     memset(&ps, 0, sizeof(ps));
     ps.version = STATE_VERSION;

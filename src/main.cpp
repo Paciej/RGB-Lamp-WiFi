@@ -5,6 +5,7 @@
 #include "Effects.h"
 #include "LedMqttService.h"
 #include "Secrets.h"
+#include "Storage.h"
 
 /********* Hardware *********/
   // Pins
@@ -18,6 +19,7 @@ const uint8_t PIN_TEMP = 18;
 LightController light(LightPins(PIN_RED, PIN_GREEN, PIN_BLUE));
 ThermalGuard guard(light, PIN_TEMP);
 EffectEngine effects(light);
+Storage storage;
 LedMqttService mqtt;
 
 /****** Variables *******/
@@ -67,6 +69,8 @@ void updateButton() {
 void publishChanges() {
   uint8_t ch = light.takeChanges();
   if (!ch) return;
+  storage.markStateDirty();
+  if (!mqtt.isConnected()) return;
   const LightState& s = light.state();
 
   if (ch && LightController::CH_COLOR) {
@@ -105,6 +109,29 @@ void publishThermal() {
 void setup() {
   Serial.begin(115200);
   pinMode(PIN_BUTTON, INPUT_PULLUP);
+
+  storage.begin();
+
+  LightState saved;
+  EffectParams savedParams;
+  RestorePolicy policy = storage.restorePolicy();
+
+  if (policy != RestorePolicy::None && storage.loadState(saved, savedParams)) {
+    LightMode savedMode = saved.mode;
+    bool savedPower = saved.power;
+    saved.mode = LightMode::None;
+    saved.power = true;
+    light.restore(saved);
+
+    if (policy == RestorePolicy::Full && savedMode != LightMode::None) {
+      savedParams.startAt =  effectNowMs();
+      effects.start(savedMode, savedParams);
+    }
+
+    if (!savedPower) light.setPower(false);
+  }
+
+
   light.begin();
 
   guard.begin();
@@ -131,7 +158,8 @@ void loop() {
   }
 
   light.update();
-  publishChanges();
   publishThermal();
+  publishChanges();
+  if (storage.stateDueSave()) storage.saveState(light.state(), effects.currentParams());
   delay(10);
 }

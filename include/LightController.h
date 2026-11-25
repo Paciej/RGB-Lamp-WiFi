@@ -51,6 +51,7 @@ public:
     uint8_t takeChanges();
     const LightState& state() const { return _state; }
     void markAllChanged() { changes = 0xFF; }
+    void restore(const LightState& st);
 };
 
 #endif

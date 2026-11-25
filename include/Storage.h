@@ -40,7 +40,7 @@ public:
     bool loadState(LightState& s, EffectParams& p);
     void markStateDirty();
     bool stateDueSave() const;
-    bool saveState(const LightState& s, const EffectParams& p);
+    void saveState(const LightState& s, const EffectParams& p);
 };
 
 #endif

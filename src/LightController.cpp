@@ -89,3 +89,9 @@ uint8_t LightController::takeChanges() {
     changes = 0;
     return c;
 }
+
+void LightController::restore(const LightState& st) {
+    this->_state = st;
+    effectActive = false;
+    outputDirty = true;
+}
