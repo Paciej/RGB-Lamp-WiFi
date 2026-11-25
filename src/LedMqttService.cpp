@@ -135,22 +135,39 @@ void LedMqttService::init(const char* ssid, const char* password) {
 void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
     if (length > MAX_SIZE) {
         Serial.printf("Payload too long: %u\n", length);
-    }
-
-    const char* name = commandOf(topic);
-    if (!name) {
-        Serial.print("\nThis topic has wrong prefix - light won't process it");
         return;
     }
 
     char buf[MAX_SIZE + 1];
     memcpy(buf, payload, length);
     buf[length] = '\0';
-    Serial.printf("Received: %s\n", buf);
+    Serial.printf("Received [%s]: %s\n", topic, buf);
+
+    if (strcmp(topic, pf_cfg) == 0) {
+        size_t n = length;
+        while (n > 0 && (buf[n - 1] == '\n' || buf[n - 1] == '\r' || buf[n - 1] == ' ')) {
+            buf[--n] = '\0';
+        }
+        if (roomCallback) roomCallback(buf);     
+        return;
+    }
+
+    bool fromGroup = false;
+    const char* name = commandOf(topic);
+
+    if (!name && roomLen > 0 && strncmp(topic, pf_room, roomLen) == 0) {
+        name = topic + roomLen;
+        fromGroup = true;
+    }
+    if (!name) {
+        Serial.println("This topic has wrong prefix - light won't process it");
+        return;
+    }
+    if (fromGroup && strcmp(name, topicMode) != 0) return;
 
     if (strcmp(name, topicColor) == 0) {
         char* p = buf;
-        char *end;
+        char* end;
         long v[3];
         bool ok = true;
 
@@ -158,7 +175,7 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
             v[i] = strtol(p, &end, 10);
             if (end == p) { ok = false; break; }
             if (i < 2) {
-                if (*end != ',') { ok = false; break; } 
+                if (*end != ',') { ok = false; break; }
                 p = end + 1;
             }
         }
@@ -170,10 +187,9 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
                 (uint8_t)constrain(v[2], 0, 255)
             );
         }
-
     }
     else if (strcmp(name, topicBrightness) == 0) {
-        brightnessCallback(constrain(atoi(buf), 0, 255));
+        if (brightnessCallback) brightnessCallback(constrain(atoi(buf), 0, 255));
     }
     else if (strcmp(name, topicMode) == 0) {
         ModeCommand cmd;
@@ -182,11 +198,9 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
         }
     }
     else if (strcmp(name, topicPower) == 0) {
-        if (strcmp(buf, "ON") == 0) {
-            powerCallback(true);
-        } else if (strcmp(buf, "OFF") == 0) {
-            powerCallback(false);
-        }
+        if (!powerCallback) return;
+        if (strcmp(buf, "ON") == 0) powerCallback(true);
+        else if (strcmp(buf, "OFF") == 0) powerCallback(false);
     }
 }
 
