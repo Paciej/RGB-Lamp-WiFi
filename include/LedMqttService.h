@@ -9,6 +9,7 @@ typedef void (*PowerChangeCallback)(bool);
 typedef void (*ColorChangeCallback)(uint8_t, uint8_t, uint8_t);
 typedef void (*BrightnessChangeCallback)(uint8_t);
 typedef void (*ModeChangeCallback)(const ModeCommand&);
+using RoomChangeCallback = void (*)(const char* roomId);
 
 static constexpr size_t MAX_SIZE = 64;
 constexpr const char* infoJson = 
@@ -26,17 +27,24 @@ private:
     ColorChangeCallback colorCallback = nullptr;
     BrightnessChangeCallback brightnessCallback = nullptr;
     ModeChangeCallback modeCallback = nullptr;
+    RoomChangeCallback roomCallback = nullptr;
     
     // MQTT clients
     WiFiClient wifiClient;
     PubSubClient* mqttClient;
     IPAddress mqttAddress;
 
-    char device_id[13];
-    char pf_cmd[MAX_SIZE];
-    char pf_status[MAX_SIZE];
+    char device_id[13] = {0};
+    char room_id[MAX_SIZE] = {0};
+
+    char pf_cmd[MAX_SIZE] = {0};
+    char pf_status[MAX_SIZE] = {0};
+    char pf_cfg[MAX_SIZE] = {0};
+    char pf_room[MAX_SIZE] = {0};
     size_t cmdLen = 0;
     size_t statusLen = 0;
+    size_t cfgLen = 0;
+    size_t roomLen = 0;
 
     // TOPICS
     // ---------------------------------------------
@@ -45,6 +53,7 @@ private:
     const char* topicColor = "color";
     const char* topicBrightness = "brightness";
     const char* topicMode =  "mode";
+    const char* topicRoom = "room";
 
     void callback(char* topic, byte* payload, unsigned int length);
     const char* commandOf(const char* topic) const;
@@ -52,6 +61,7 @@ private:
     void reconnect();
     bool resolveMqttBroker();
     void sendInfo();
+
 public:
     // TOPICS
     // ---------------------------------------------
@@ -71,11 +81,13 @@ public:
     void init(const char* ssid, const char* password);
     void update();
     void sendData(const char* data, const char* topic, bool retained = false);
+    void setRoom(const char* roomId);
     bool isConnected();
     void onPowerChange(PowerChangeCallback callback);
     void onColorChange(ColorChangeCallback callback);
     void onBrightnessChange(BrightnessChangeCallback callback);
     void onModeChange(ModeChangeCallback callback);
+    void onRoomChange(RoomChangeCallback callback);
 };
 
 #endif

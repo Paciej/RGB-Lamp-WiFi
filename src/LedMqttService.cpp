@@ -37,8 +37,6 @@ void LedMqttService::sendInfo() {
 }
 
 void LedMqttService::reconnect() {
-    char filter[MAX_SIZE + 2];
-    snprintf(filter, sizeof(filter), "%s#", this->pf_cmd);
     char tConnect[statusLen + strlen(topicConnection) + 1];
     snprintf(tConnect, sizeof(tConnect), "%s%s", pf_status, topicConnection);
 
@@ -51,7 +49,12 @@ void LedMqttService::reconnect() {
         }
         Serial.println("Attempting MQTT connection...");
         if (mqttClient->connect(device_id, MQTT_USERNAME, MQTT_PASSWORD, tConnect, 1, true, "offline")) {
-            mqttClient->subscribe(filter, 1);
+            mqttClient->subscribe(this->pf_cmd, 1);
+            mqttClient->subscribe(this->pf_cfg, 1);
+
+            if (pf_room[0]) {
+                mqttClient->subscribe(this->pf_room, 1);
+            }
             sendInfo();
             sendData("online", topicConnection, true);
             Serial.println("Successfully connected to broker");
@@ -100,8 +103,9 @@ void LedMqttService::init(const char* ssid, const char* password) {
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
     snprintf(device_id, sizeof(device_id), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-    cmdLen = snprintf(this->pf_cmd, 48, "candelum/%s/cmd/", device_id);
+    cmdLen = snprintf(this->pf_cmd, 48, "candelum/%s/cmd/#", device_id) - 1; 
     statusLen = snprintf(this->pf_status, 48, "candelum/%s/status/", device_id);
+    cfgLen = snprintf(this->pf_cfg, 48, "candelum/%s/config/room", device_id);
 
     Serial.printf("\nConnecting to %s", ssid);
     WiFi.mode(WIFI_STA);
@@ -205,6 +209,26 @@ void LedMqttService::sendData(const char* data, const char* topic, bool retained
     mqttClient->publish(t, data, retained);
 }
 
+void LedMqttService::setRoom(const char* roomId) {
+    char newRoom[sizeof(pf_room)] = {0};
+    if (roomId && roomId[0]) {
+        int n = snprintf(newRoom, sizeof(newRoom), "candelum/group/%s/cmd/#", roomId);
+        if (n < 0 || n >= (int)sizeof(newRoom)) newRoom[0] = 0;
+    }
+    if (strcmp(newRoom, pf_room) == 0) return;
+
+    if (mqttClient->connected()) {
+        if (pf_room[0]) {
+            mqttClient->unsubscribe(pf_room);
+        }
+        if (newRoom[0]) {
+            mqttClient->subscribe(newRoom, 1);
+        }
+    }
+    strlcpy(pf_room, newRoom, sizeof(pf_room));
+    roomLen = pf_room[0] ? strlen(pf_room) - 1 : 0;
+}
+
 bool LedMqttService::isConnected() {
     return mqttClient->connected();
 }
@@ -223,4 +247,8 @@ void LedMqttService::onBrightnessChange(BrightnessChangeCallback callback) {
 
 void LedMqttService::onModeChange(ModeChangeCallback callback) {
     this->modeCallback = callback;
+}
+
+void LedMqttService::onRoomChange(RoomChangeCallback callback) {
+    this->roomCallback = callback;
 }
