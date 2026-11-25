@@ -42,6 +42,18 @@ void handleModeFromMqtt(const ModeCommand& cmd) {
   }
   effects.start(cmd);
 }
+void handleRoomFromMqtt(const char* id) {
+  if (id[0] == 0) {
+    storage.clearRoomId();
+    mqtt.setRoom("");
+    return;
+  }
+  if (storage.setRoomId(id)) {
+    mqtt.setRoom(id);
+  } else {
+    Serial.println("Invalid room ID");
+  }
+}
 
 void updateButton() {
   int reading = digitalRead(PIN_BUTTON);
@@ -140,6 +152,7 @@ void setup() {
   mqtt.onColorChange(handleColorFromMqtt);
   mqtt.onBrightnessChange(handleBrightnessFromMqtt);
   mqtt.onModeChange(handleModeFromMqtt);
+  mqtt.onRoomChange(handleRoomFromMqtt);
   mqtt.init(WIFI_SSID, WIFI_PASSWORD);
 }
 
