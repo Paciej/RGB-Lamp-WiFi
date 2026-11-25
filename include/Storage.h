@@ -34,6 +34,7 @@ public:
 
     const char* roomId() { return room; }
     bool setRoomId(const char* id);
+    void clearRoomId();
     RestorePolicy restorePolicy() { return policy; }
     void setRestorePolicy(RestorePolicy p);
 

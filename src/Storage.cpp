@@ -22,6 +22,14 @@ bool Storage::setRoomId(const char* id) {
     return true;
 }
 
+void Storage::clearRoomId() {
+    if (room[0] == 0) return;
+    prefs.begin(NS_CFG, false);
+    prefs.remove("room");
+    prefs.end();
+    room[0] = 0;
+}
+
 void Storage::setRestorePolicy(RestorePolicy p) {
     if (p == policy) return;
     prefs.begin(NS_CFG, false);
