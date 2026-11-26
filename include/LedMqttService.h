@@ -30,7 +30,6 @@ private:
     static const uint32_t MQTT_BACKOFF_MIN = 2000;
     static const uint32_t MQTT_BACKOFF_MAX = 30000;
 
-
     PowerChangeCallback powerCallback = nullptr;
     ColorChangeCallback colorCallback = nullptr;
     BrightnessChangeCallback brightnessCallback = nullptr;
