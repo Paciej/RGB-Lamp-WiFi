@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include "ModeCommand.h"
+#include "NetConfig.h"
 
 typedef void (*PowerChangeCallback)(bool);
 typedef void (*ColorChangeCallback)(uint8_t, uint8_t, uint8_t);
@@ -23,6 +24,13 @@ constexpr const char* infoJson =
 
 class LedMqttService {
 private:
+    enum class NetState : uint8_t { Idle, WifiConnecting, MqttConnecting, Online };
+
+    static const uint32_t WIFI_ATTEMPT_TIMEOUT = 20000;
+    static const uint32_t MQTT_BACKOFF_MIN = 2000;
+    static const uint32_t MQTT_BACKOFF_MAX = 30000;
+
+
     PowerChangeCallback powerCallback = nullptr;
     ColorChangeCallback colorCallback = nullptr;
     BrightnessChangeCallback brightnessCallback = nullptr;
@@ -33,14 +41,22 @@ private:
     WiFiClient wifiClient;
     PubSubClient* mqttClient;
     IPAddress mqttAddress;
+    NetConfig cfg;
+
+    NetState state = NetState::Idle;
+    uint32_t stateSince = 0;
+    uint32_t nextAttempt = 0;
+    uint32_t backoff = MQTT_BACKOFF_MIN;
+    uint32_t offlineSince = 0;
 
     char device_id[13] = {0};
-    char room_id[MAX_SIZE] = {0};
 
+    char room_id[MAX_SIZE] = {0};
     char pf_cmd[MAX_SIZE] = {0};
     char pf_status[MAX_SIZE] = {0};
     char pf_cfg[MAX_SIZE] = {0};
     char pf_room[MAX_SIZE] = {0};
+    char willTopic[MAX_SIZE] = {0};
     size_t cmdLen = 0;
     size_t statusLen = 0;
     size_t cfgLen = 0;
@@ -57,9 +73,12 @@ private:
 
     void callback(char* topic, byte* payload, unsigned int length);
     const char* commandOf(const char* topic) const;
+    void startWifi();
+    void enterMqttConnecting(uint32_t now);
     String readDeviceId();
     void reconnect();
     bool resolveMqttBroker();
+    void tryMqttConnect();
     void sendInfo();
 
 public:
@@ -78,11 +97,13 @@ public:
 
     LedMqttService();
 
+    void begin(const NetConfig& config);
     void init(const char* ssid, const char* password);
     void update();
     void sendData(const char* data, const char* topic, bool retained = false);
     void setRoom(const char* roomId);
     bool isConnected();
+    uint32_t offlineMs() const;
     void onPowerChange(PowerChangeCallback callback);
     void onColorChange(ColorChangeCallback callback);
     void onBrightnessChange(BrightnessChangeCallback callback);
