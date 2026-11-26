@@ -10,15 +10,6 @@ LedMqttService::LedMqttService() {
 
 // ********* Private Functions ***********/
 // ----------------------------------------
-
-String LedMqttService::readDeviceId() {
-  uint8_t mac[6];
-  esp_read_mac(mac, ESP_MAC_WIFI_STA);
-  snprintf(device_id, sizeof(device_id), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-  Serial.printf("esp32 MAC address: %s", device_id);
-  return String(device_id);
-}
-
 const char* LedMqttService::commandOf(const char* topic) const {
     return strncmp(topic, pf_cmd, cmdLen) == 0 ? topic + cmdLen : nullptr;
 }
@@ -32,35 +23,6 @@ void LedMqttService::sendInfo() {
     Serial.printf("Info publish %s (%d B)\n", ok ? "Ok" : "Failed", (unsigned)strlen(infoJson));
 }
 
-void LedMqttService::begin(const NetConfig& config) {
-    this->cfg = config;
-
-    uint8_t mac[6];
-    esp_read_mac(mac, ESP_MAC_WIFI_STA);
-    snprintf(device_id, sizeof(device_id), "%02x%02x%02x%02x%02x%02x",
-             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-
-    cmdLen = snprintf(pf_cmd, sizeof(pf_cmd), "candelum/%s/cmd/#", device_id) - 1;
-    statusLen = snprintf(pf_status, sizeof(pf_status), "candelum/%s/status/", device_id);
-    cfgLen = snprintf(pf_cfg, sizeof(pf_cfg), "candelum/%s/config/room", device_id);
-    snprintf(willTopic, sizeof(willTopic), "%s%s", pf_status, topicConnection);
-
-    mqttClient->setServer(cfg.host, cfg.port);
-    mqttClient->setBufferSize(512);
-    mqttClient->setKeepAlive(30);
-    mqttClient->setSocketTimeout(2);
-    mqttClient->setCallback([this](char* topic, byte* payload, unsigned int length) {
-        callback(topic, payload, length);
-    });
-
-    WiFi.mode(WIFI_STA);
-    WiFi.persistent(false);
-    WiFi.setSleep(false);
-    WiFi.setAutoReconnect(true);
-
-    offlineSince = millis();
-    startWifi();
-}
 
 void LedMqttService::startWifi() {
     Serial.printf("Connecting to WiFi: %s\n", cfg.ssid);
@@ -94,73 +56,6 @@ void LedMqttService::tryMqttConnect() {
         nextAttempt = millis() + backoff;
         backoff = min(backoff * 2, MQTT_BACKOFF_MAX);
     }
-}
-
-void LedMqttService::reconnect() {
-    char tConnect[statusLen + strlen(topicConnection) + 1];
-    snprintf(tConnect, sizeof(tConnect), "%s%s", pf_status, topicConnection);
-
-    while (!mqttClient->connected()) {
-        if (WiFi.status() != WL_CONNECTED) {
-            Serial.println("ESP32 is not connected to WiFi. Reconnecting...");
-            WiFi.reconnect();
-        } else {
-            Serial.printf("Wifi signal: %d\n", WiFi.RSSI());
-        }
-        Serial.println("Attempting MQTT connection...");
-        if (mqttClient->connect(device_id, MQTT_USERNAME, MQTT_PASSWORD, tConnect, 1, true, "offline")) {
-            mqttClient->subscribe(this->pf_cmd, 1);
-            mqttClient->subscribe(this->pf_cfg, 1);
-
-            if (pf_room[0]) {
-                mqttClient->subscribe(this->pf_room, 1);
-            }
-            sendInfo();
-            sendData("online", topicConnection, true);
-            Serial.println("Successfully connected to broker");
-        } else {
-            Serial.printf("Failed, rc=%d\n", mqttClient->state());
-            delay(5000);
-        }
-    } 
-}
-
-//********* Public Functions ***********/
-// ----------------------------------------
-void LedMqttService::init(const char* ssid, const char* password) {
-    Serial.begin(115200);
-
-    // Read mac and create prefixes
-    uint8_t mac[6];
-    esp_read_mac(mac, ESP_MAC_WIFI_STA);
-    snprintf(device_id, sizeof(device_id), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-
-    cmdLen = snprintf(this->pf_cmd, 48, "candelum/%s/cmd/#", device_id) - 1; 
-    statusLen = snprintf(this->pf_status, 48, "candelum/%s/status/", device_id);
-    cfgLen = snprintf(this->pf_cfg, 48, "candelum/%s/config/room", device_id);
-
-    Serial.printf("\nConnecting to %s", ssid);
-    WiFi.mode(WIFI_STA);
-    WiFi.persistent(false);
-    WiFi.setSleep(false);
-    WiFi.begin(ssid, password);
-    WiFi.setAutoReconnect(true);
-
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-    }
-
-    Serial.printf("\nWiFi Connected\n IP address: %s\n", (String)WiFi.localIP().toString().c_str());
-
-    // Setup MQTT
-    this->mqttAddress.fromString(MQTT_BROKER);
-    Serial.printf("Broker ip address: %s\n", this->mqttAddress.toString().c_str());
-    mqttClient->setServer(this->mqttAddress, MQTT_BROKER_PORT);
-    mqttClient->setBufferSize(512);
-    mqttClient->setKeepAlive(20);
-    mqttClient->setCallback([this](char* topic, byte* payload, unsigned int length){callback(topic, payload, length);});
-    reconnect();
 }
 
 void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
@@ -233,6 +128,38 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
         if (strcmp(buf, "ON") == 0) powerCallback(true);
         else if (strcmp(buf, "OFF") == 0) powerCallback(false);
     }
+}
+
+//********* Public Functions ***********/
+// ----------------------------------------
+void LedMqttService::begin(const NetConfig& config) {
+    this->cfg = config;
+
+    uint8_t mac[6];
+    esp_read_mac(mac, ESP_MAC_WIFI_STA);
+    snprintf(device_id, sizeof(device_id), "%02x%02x%02x%02x%02x%02x",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+    cmdLen = snprintf(pf_cmd, sizeof(pf_cmd), "candelum/%s/cmd/#", device_id) - 1;
+    statusLen = snprintf(pf_status, sizeof(pf_status), "candelum/%s/status/", device_id);
+    cfgLen = snprintf(pf_cfg, sizeof(pf_cfg), "candelum/%s/config/room", device_id);
+    snprintf(willTopic, sizeof(willTopic), "%s%s", pf_status, topicConnection);
+
+    mqttClient->setServer(cfg.host, cfg.port);
+    mqttClient->setBufferSize(512);
+    mqttClient->setKeepAlive(30);
+    mqttClient->setSocketTimeout(2);
+    mqttClient->setCallback([this](char* topic, byte* payload, unsigned int length) {
+        callback(topic, payload, length);
+    });
+
+    WiFi.mode(WIFI_STA);
+    WiFi.persistent(false);
+    WiFi.setSleep(false);
+    WiFi.setAutoReconnect(true);
+
+    offlineSince = millis();
+    startWifi();
 }
 
 void LedMqttService::update() {
