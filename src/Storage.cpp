@@ -2,6 +2,7 @@
 
 static const char* NS_CFG = "cfg";
 static const char* NS_STATE = "state";
+static const char* NS_NET = "net";
 
 void Storage::begin() {
     room[0] = 0;
@@ -88,4 +89,36 @@ void Storage::saveState(const LightState& s, const EffectParams& p) {
     prefs.end();
     last = ps;
     haveLast = true;
+}
+
+bool Storage::loadNetConfig(NetConfig& c) {
+    c = NetConfig();
+    prefs.begin(NS_NET, false);
+    prefs.getString("ssid",  c.ssid,     sizeof(c.ssid));
+    prefs.getString("wpass", c.wifiPass, sizeof(c.wifiPass));
+    prefs.getString("host",  c.host,     sizeof(c.host));
+    prefs.getString("user",  c.user,     sizeof(c.user));
+    prefs.getString("mpass", c.mqttPass, sizeof(c.mqttPass));
+    c.port = prefs.getUShort("port", 1883);
+    prefs.end();
+    return c.valid();
+}
+
+bool Storage::saveNetConfig(const NetConfig& c) {
+    if (!c.valid()) return false;
+    prefs.begin(NS_NET, false);
+    prefs.putString("ssid",  c.ssid);
+    prefs.putString("wpass", c.wifiPass);
+    prefs.putString("host",  c.host);
+    prefs.putString("user",  c.user);
+    prefs.putString("mpass", c.mqttPass);
+    prefs.putUShort("port",  c.port);
+    prefs.end();
+    return true;
+}
+
+void Storage::clearNetConfig() {
+    prefs.begin(NS_NET, false);
+    prefs.clear();
+    prefs.end();
 }

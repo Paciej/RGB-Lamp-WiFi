@@ -4,6 +4,7 @@
 #include <Preferences.h>
 #include "LightState.h"
 #include "Effects.h"
+#include "NetConfig.h"
 
 static const size_t ROOM_MAX = 32;
 static const uint32_t SAVE_DELAY_MS = 5000;
@@ -42,6 +43,10 @@ public:
     void markStateDirty();
     bool stateDueSave() const;
     void saveState(const LightState& s, const EffectParams& p);
+    
+    bool loadNetConfig(NetConfig& c);
+    bool saveNetConfig(const NetConfig& c);
+    void clearNetConfig();
 };
 
 #endif
