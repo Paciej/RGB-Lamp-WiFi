@@ -1,7 +1,6 @@
 #include "LedMqttService.h"
 #include "Secrets.h"
 #include <esp_mac.h>
-#include <ESPmDNS.h>
 
 // ********* Constructors **********/
 // ---------------------------------
@@ -65,34 +64,6 @@ void LedMqttService::reconnect() {
     } 
 }
 
-bool LedMqttService::resolveMqttBroker() {
-
-    IPAddress brokerIp = IPAddress(0, 0, 0, 0);
-
-    if (!MDNS.begin(this->device_id)) {
-        Serial.println("MDNS ERROR: Couldn't initialize mDNS");
-        return false;
-    } 
-
-    uint8_t tries = 0;
-
-    while (++tries < 3) {
-        brokerIp = MDNS.queryHost(MQTT_BROKER_HOST, 3000);
-        if (brokerIp != IPAddress(0, 0, 0, 0)) { break; }
-    }
-
-    if (brokerIp == IPAddress(0, 0, 0, 0)) {
-        Serial.println("Couldn't find address via MDNS. Setting hardocded IP address");
-        if (!brokerIp.fromString(MQTT_BROKER)) {
-            Serial.println("Invalid given IP Address");
-            return false;
-        }
-    }
-    this->mqttAddress = brokerIp;
-    Serial.printf("MQTT broker IP: %s\n", mqttAddress.toString().c_str());
-    return true;
-}
-
 //********* Public Functions ***********/
 // ----------------------------------------
 void LedMqttService::init(const char* ssid, const char* password) {
@@ -122,7 +93,6 @@ void LedMqttService::init(const char* ssid, const char* password) {
     Serial.printf("\nWiFi Connected\n IP address: %s\n", (String)WiFi.localIP().toString().c_str());
 
     // Setup MQTT
-    //resolveMqttBroker();    // find broker IP and set server
     this->mqttAddress.fromString(MQTT_BROKER);
     Serial.printf("Broker ip address: %s\n", this->mqttAddress.toString().c_str());
     mqttClient->setServer(this->mqttAddress, MQTT_BROKER_PORT);
@@ -210,7 +180,6 @@ void LedMqttService::update() {
         WiFi.reconnect();
     }
     if (!mqttClient->connected()) {
-        resolveMqttBroker();
         reconnect();
     }
 
