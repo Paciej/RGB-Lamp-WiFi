@@ -74,9 +74,6 @@ private:
     const char* commandOf(const char* topic) const;
     void startWifi();
     void enterMqttConnecting(uint32_t now);
-    String readDeviceId();
-    void reconnect();
-    bool resolveMqttBroker();
     void tryMqttConnect();
     void sendInfo();
 
@@ -97,7 +94,6 @@ public:
     LedMqttService();
 
     void begin(const NetConfig& config);
-    void init(const char* ssid, const char* password);
     void update();
     void sendData(const char* data, const char* topic, bool retained = false);
     void setRoom(const char* roomId);
