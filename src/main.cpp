@@ -31,6 +31,15 @@ unsigned long lastDebounceTime = 0;
   // mqtt
 bool wasMqttConnected = false;
 
+static void seedNetFromSecrets(NetConfig& c) {
+    strlcpy(c.ssid, WIFI_SSID, sizeof(c.ssid));
+    strlcpy(c.wifiPass, WIFI_PASSWORD, sizeof(c.wifiPass));
+    strlcpy(c.host, MQTT_BROKER, sizeof(c.host));
+    c.port = MQTT_BROKER_PORT;
+    strlcpy(c.user, MQTT_USERNAME, sizeof(c.user));
+    strlcpy(c.mqttPass, MQTT_PASSWORD, sizeof(c.mqttPass));
+}
+
 /****** MQTT handlers *******/
 void handleBrightnessFromMqtt(uint8_t brightness) { light.setBrightness(brightness); }
 void handlePowerFromMqtt(bool power) { light.setPower(power); }
@@ -143,7 +152,6 @@ void setup() {
     if (!savedPower) light.setPower(false);
   }
 
-
   light.begin();
 
   guard.begin();
@@ -153,7 +161,13 @@ void setup() {
   mqtt.onBrightnessChange(handleBrightnessFromMqtt);
   mqtt.onModeChange(handleModeFromMqtt);
   mqtt.onRoomChange(handleRoomFromMqtt);
-  mqtt.init(WIFI_SSID, WIFI_PASSWORD);
+
+  NetConfig net;
+  if (!storage.loadNetConfig(net)) {
+  seedNetFromSecrets(net);
+  storage.saveNetConfig(net);
+}
+mqtt.begin(net);
 }
 
 void loop() {
