@@ -6,6 +6,7 @@
 #include "LedMqttService.h"
 #include "Secrets.h"
 #include "Storage.h"
+#include "CommandRouter.h"
 
 /********* Hardware *********/
   // Pins
@@ -20,6 +21,7 @@ LightController light(LightPins(PIN_RED, PIN_GREEN, PIN_BLUE));
 ThermalGuard guard(light, PIN_TEMP);
 EffectEngine effects(light);
 Storage storage;
+CommandRouter router;
 LedMqttService mqtt;
 
 /****** Variables *******/
@@ -153,21 +155,23 @@ void setup() {
   }
 
   light.begin();
-
   guard.begin();
 
-  mqtt.onPowerChange(handlePowerFromMqtt);
-  mqtt.onColorChange(handleColorFromMqtt);
-  mqtt.onBrightnessChange(handleBrightnessFromMqtt);
-  mqtt.onModeChange(handleModeFromMqtt);
-  mqtt.onRoomChange(handleRoomFromMqtt);
+  router.onPower(handlePowerFromMqtt);
+  router.onColor(handleColorFromMqtt);
+  router.onBrightness(handleBrightnessFromMqtt);
+  router.onMode(handleModeFromMqtt);
 
   NetConfig net;
   if (!storage.loadNetConfig(net)) {
-  seedNetFromSecrets(net);
-  storage.saveNetConfig(net);
-}
-mqtt.begin(net);
+    seedNetFromSecrets(net);
+    storage.saveNetConfig(net);
+  }
+
+  mqtt.setRouter(&router);
+  mqtt.setRoom(storage.roomId());
+  mqtt.onRoomChange(handleRoomFromMqtt);
+  mqtt.begin(net);
 }
 
 void loop() {
@@ -185,8 +189,8 @@ void loop() {
   }
 
   light.update();
-  publishThermal();
   publishChanges();
+  publishThermal();
   if (storage.stateDueSave()) storage.saveState(light.state(), effects.currentParams());
   delay(10);
 }

@@ -1,8 +1,9 @@
 #include "CommandRouter.h"
 
 
-bool CommandRouter::handle(const char* name, const char* payload, bool fromGroup = false) {
-    if (fromGroup && strcmp(name, "mode") != 0) return false;
+bool CommandRouter::handle(const char* name, const char* payload, bool fromGroup) {
+
+    Serial.printf("In Command Router. Topic: %s, payload: %s\n", name, payload);
 
     if (strcmp(name, "color") == 0) {
         const char* p = payload;

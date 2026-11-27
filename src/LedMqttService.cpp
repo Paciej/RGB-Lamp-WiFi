@@ -46,9 +46,9 @@ void LedMqttService::tryMqttConnect() {
         mqttClient->subscribe(pf_cfg, 1);
         if (pf_room[0]) mqttClient->subscribe(pf_room, 1);
         sendInfo();
-        sendData("online", topicConnection, true);
         state = NetState::Online;
         backoff = MQTT_BACKOFF_MIN;
+        sendData("online", topicConnection, true);
         Serial.println("Successfully connected to broker");
     } else {
         Serial.printf("MQTT failed, rc=%d, retry in %lu ms\n", mqttClient->state(), (unsigned long)backoff);
@@ -90,43 +90,7 @@ void LedMqttService::callback(char* topic, byte* payload, unsigned int length) {
     }
     if (fromGroup && strcmp(name, topicMode) != 0) return;
 
-    if (strcmp(name, topicColor) == 0) {
-        char* p = buf;
-        char* end;
-        long v[3];
-        bool ok = true;
-
-        for (int i = 0; i < 3 && ok; i++) {
-            v[i] = strtol(p, &end, 10);
-            if (end == p) { ok = false; break; }
-            if (i < 2) {
-                if (*end != ',') { ok = false; break; }
-                p = end + 1;
-            }
-        }
-
-        if (ok && colorCallback) {
-            colorCallback(
-                (uint8_t)constrain(v[0], 0, 255),
-                (uint8_t)constrain(v[1], 0, 255),
-                (uint8_t)constrain(v[2], 0, 255)
-            );
-        }
-    }
-    else if (strcmp(name, topicBrightness) == 0) {
-        if (brightnessCallback) brightnessCallback(constrain(atoi(buf), 0, 255));
-    }
-    else if (strcmp(name, topicMode) == 0) {
-        ModeCommand cmd;
-        if (parseModeCommand(buf, cmd) && modeCallback) {
-            modeCallback(cmd);
-        }
-    }
-    else if (strcmp(name, topicPower) == 0) {
-        if (!powerCallback) return;
-        if (strcmp(buf, "ON") == 0) powerCallback(true);
-        else if (strcmp(buf, "OFF") == 0) powerCallback(false);
-    }
+    if (router) router->handle(name, buf, fromGroup);
 }
 
 //********* Public Functions ***********/
@@ -240,22 +204,6 @@ bool LedMqttService::isConnected() {
 
 uint32_t LedMqttService::offlineMs() const {
     return state == NetState::Online ? 0 : millis() - offlineSince;
-}
-
-void LedMqttService::onPowerChange(PowerChangeCallback callback) {
-    this->powerCallback = callback;
-}
-
-void LedMqttService::onColorChange(ColorChangeCallback callback) {
-    this->colorCallback = callback;
-}
-
-void LedMqttService::onBrightnessChange(BrightnessChangeCallback callback) {
-    this->brightnessCallback = callback;
-}
-
-void LedMqttService::onModeChange(ModeChangeCallback callback) {
-    this->modeCallback = callback;
 }
 
 void LedMqttService::onRoomChange(RoomChangeCallback callback) {
