@@ -5,11 +5,8 @@
 #include <PubSubClient.h>
 #include "ModeCommand.h"
 #include "NetConfig.h"
+#include "CommandRouter.h"
 
-typedef void (*PowerChangeCallback)(bool);
-typedef void (*ColorChangeCallback)(uint8_t, uint8_t, uint8_t);
-typedef void (*BrightnessChangeCallback)(uint8_t);
-typedef void (*ModeChangeCallback)(const ModeCommand&);
 using RoomChangeCallback = void (*)(const char* roomId);
 
 static constexpr size_t MAX_SIZE = 64;
@@ -30,17 +27,15 @@ private:
     static const uint32_t MQTT_BACKOFF_MIN = 2000;
     static const uint32_t MQTT_BACKOFF_MAX = 30000;
 
-    PowerChangeCallback powerCallback = nullptr;
-    ColorChangeCallback colorCallback = nullptr;
-    BrightnessChangeCallback brightnessCallback = nullptr;
-    ModeChangeCallback modeCallback = nullptr;
     RoomChangeCallback roomCallback = nullptr;
     
     // MQTT clients
     WiFiClient wifiClient;
-    PubSubClient* mqttClient;
+    PubSubClient* mqttClient = nullptr;
+
     IPAddress mqttAddress;
     NetConfig cfg;
+    CommandRouter* router = nullptr;
 
     NetState state = NetState::Idle;
     uint32_t stateSince = 0;
@@ -97,12 +92,9 @@ public:
     void update();
     void sendData(const char* data, const char* topic, bool retained = false);
     void setRoom(const char* roomId);
+    void setRouter(CommandRouter* r) { this->router = r; }
     bool isConnected();
     uint32_t offlineMs() const;
-    void onPowerChange(PowerChangeCallback callback);
-    void onColorChange(ColorChangeCallback callback);
-    void onBrightnessChange(BrightnessChangeCallback callback);
-    void onModeChange(ModeChangeCallback callback);
     void onRoomChange(RoomChangeCallback callback);
 };
 
